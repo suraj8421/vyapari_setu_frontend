@@ -2,30 +2,40 @@
 // Sales Page
 // ============================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { saleAPI, productAPI, customerAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlinePlus, HiOutlineTrash, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineTrash, HiOutlineMagnifyingGlass, HiOutlineFunnel } from 'react-icons/hi2';
+import { resolveDateRange } from '../utils/dateUtils';
 
 export default function SalesPage() {
     const { t } = useTranslation();
     const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Filters from URL
+    const initialRange = searchParams.get('range') || '';
+    const initialPaymentMethod = searchParams.get('paymentMethod') || '';
+
     const [sales, setSales] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
+    const [search, setSearch] = useState(searchParams.get('search') || '');
+    const [dateRange, setDateRange] = useState(initialRange);
+    const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod);
     const [modalOpen, setModalOpen] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // For new sale
     const [products, setProducts] = useState([]);
     const [customers, setCustomers] = useState([]);
-    const [saleItems, setSaleItems] = useState([{ productId: '', quantity: 1, unitPrice: 0, discount: 0 }]);
+    const [saleItems, setSaleItems] = useState([{ productId: '', quantity: 1, unitPrice: 0, discount: 0, gstRate: 0 }]);
     const [saleForm, setSaleForm] = useState({
         storeId: user?.storeId || '',
         customerId: '',
@@ -35,12 +45,30 @@ export default function SalesPage() {
         notes: '',
     });
 
-    useEffect(() => { fetchSales(); }, [page, search]);
+    useEffect(() => {
+        // Sync URL on state change
+        const params = {};
+        if (page > 1) params.page = page;
+        if (search) params.search = search;
+        if (dateRange) params.range = dateRange;
+        if (paymentMethod) params.paymentMethod = paymentMethod;
+        setSearchParams(params, { replace: true });
+
+        fetchSales();
+    }, [page, search, dateRange, paymentMethod]);
 
     const fetchSales = async () => {
         setLoading(true);
         try {
-            const { data } = await saleAPI.getAll({ page, limit: 15, search });
+            const { startDate, endDate } = resolveDateRange(dateRange);
+            const { data } = await saleAPI.getAll({
+                page,
+                limit: 15,
+                search,
+                startDate,
+                endDate,
+                paymentMethod: paymentMethod || undefined
+            });
             setSales(data.data || []);
             setPagination(data.pagination);
         } catch (err) {
@@ -58,7 +86,7 @@ export default function SalesPage() {
             ]);
             setProducts(prodRes.data.data || []);
             setCustomers(custRes.data.data || []);
-            setSaleItems([{ productId: '', quantity: 1, unitPrice: 0, discount: 0 }]);
+            setSaleItems([{ productId: '', quantity: 1, unitPrice: 0, discount: 0, gstRate: 0 }]);
             setSaleForm({
                 storeId: user?.storeId || '',
                 customerId: '',
@@ -74,7 +102,7 @@ export default function SalesPage() {
     };
 
     const addItem = () => {
-        setSaleItems([...saleItems, { productId: '', quantity: 1, unitPrice: 0, discount: 0 }]);
+        setSaleItems([...saleItems, { productId: '', quantity: 1, unitPrice: 0, discount: 0, gstRate: 0 }]);
     };
 
     const removeItem = (idx) => {
@@ -91,6 +119,7 @@ export default function SalesPage() {
             const product = products.find((p) => p.id === value);
             if (product) {
                 updated[idx].unitPrice = Number(product.sellingPrice);
+                updated[idx].gstRate = Number(product.gstRate);
             }
         }
         setSaleItems(updated);
@@ -98,7 +127,9 @@ export default function SalesPage() {
 
     const calcTotal = () => {
         return saleItems.reduce((sum, item) => {
-            return sum + (item.unitPrice * item.quantity - item.discount);
+            const itemSubtotal = (item.unitPrice * item.quantity - item.discount);
+            const gstAmount = (itemSubtotal * (Number(item.gstRate) || 0)) / 100;
+            return sum + itemSubtotal + gstAmount;
         }, 0) - (saleForm.discount || 0);
     };
 
@@ -115,6 +146,7 @@ export default function SalesPage() {
                     quantity: Number(i.quantity),
                     unitPrice: Number(i.unitPrice),
                     discount: Number(i.discount) || 0,
+                    gstRate: Number(i.gstRate) || 0,
                 })),
             };
             if (!payload.customerId) delete payload.customerId;
@@ -146,15 +178,42 @@ export default function SalesPage() {
                 </button>
             </div>
 
-            {/* Search */}
+            {/* Filters Bar */}
             <div className="glass-card p-4">
-                <div className="relative max-w-md">
-                    <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
-                    <input
-                        type="text" className="input-field pl-10 py-2.5"
-                        placeholder={`${t('common.search')} (${t('sales.invoiceNumber')})`}
-                        value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                    />
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="relative flex-1 min-w-[240px]">
+                        <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
+                        <input
+                            type="text" className="input-field pl-10 py-2.5"
+                            placeholder={`${t('common.search')} (${t('sales.invoiceNumber')})`}
+                            value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <HiOutlineFunnel className="w-5 h-5 text-surface-400" />
+                        <select
+                            className="select-field py-2.5 w-40"
+                            value={dateRange}
+                            onChange={(e) => { setDateRange(e.target.value); setPage(1); }}
+                        >
+                            <option value="">{t('common.allTime') || 'All Time'}</option>
+                            <option value="today">{t('common.today') || 'Today'}</option>
+                            <option value="yesterday">{t('common.yesterday') || 'Yesterday'}</option>
+                            <option value="7d">{t('common.last7Days') || 'Last 7 Days'}</option>
+                            <option value="30d">{t('common.last30Days') || 'Last 30 Days'}</option>
+                        </select>
+                        <select
+                            className="select-field py-2.5 w-44"
+                            value={paymentMethod}
+                            onChange={(e) => { setPaymentMethod(e.target.value); setPage(1); }}
+                        >
+                            <option value="">{t('sales.allPayments') || 'All Payment Methods'}</option>
+                            <option value="CASH">{t('sales.cash')}</option>
+                            <option value="UPI">{t('sales.upi')}</option>
+                            <option value="CREDIT">{t('sales.credit')}</option>
+                            <option value="CARD">{t('sales.card')}</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -233,7 +292,7 @@ export default function SalesPage() {
                         <div className="space-y-3">
                             {saleItems.map((item, idx) => (
                                 <div key={idx} className="grid grid-cols-12 gap-2 items-end p-3 rounded-xl bg-surface-800/30">
-                                    <div className="col-span-5">
+                                    <div className="col-span-4">
                                         <label className="text-xs text-surface-500">{t('sales.selectProduct')}</label>
                                         <select className="select-field py-2" value={item.productId} onChange={(e) => updateItem(idx, 'productId', e.target.value)} required>
                                             <option value="">--</option>
@@ -251,6 +310,16 @@ export default function SalesPage() {
                                     <div className="col-span-2">
                                         <label className="text-xs text-surface-500">{t('sales.discount')}</label>
                                         <input type="number" className="input-field py-2" value={item.discount} onChange={(e) => updateItem(idx, 'discount', e.target.value)} />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-xs text-surface-500">{t('products.gstRate')}</label>
+                                        <select className="select-field py-2" value={item.gstRate} onChange={(e) => updateItem(idx, 'gstRate', e.target.value)}>
+                                            <option value="0">0%</option>
+                                            <option value="5">5%</option>
+                                            <option value="12">12%</option>
+                                            <option value="18">18%</option>
+                                            <option value="28">28%</option>
+                                        </select>
                                     </div>
                                     <div className="col-span-1">
                                         <button type="button" onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">

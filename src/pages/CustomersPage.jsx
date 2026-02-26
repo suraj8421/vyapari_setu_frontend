@@ -3,12 +3,14 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { customerAPI, storeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { resolveDateRange } from '../utils/dateUtils';
 import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineMagnifyingGlass,
     HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineArrowUp, HiOutlineArrowDown,
@@ -17,12 +19,14 @@ import {
 export default function CustomersPage() {
     const { t } = useTranslation();
     const { isAdmin, user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [customers, setCustomers] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
+    const [search, setSearch] = useState(searchParams.get('search') || '');
+    const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
     const [stores, setStores] = useState([]);
+    const [khataRange, setKhataRange] = useState(searchParams.get('range') || '30d');
 
     // Modals
     const [custModalOpen, setCustModalOpen] = useState(false);
@@ -37,7 +41,30 @@ export default function CustomersPage() {
     const [form, setForm] = useState(emptyForm);
     const [payForm, setPayForm] = useState({ customerId: '', amount: '', paymentMethod: 'CASH', description: '', reference: '' });
 
-    useEffect(() => { fetchCustomers(); if (isAdmin) fetchStores(); }, [page, search]);
+    useEffect(() => {
+        // Update URL
+        const params = {};
+        if (page > 1) params.page = page;
+        if (search) params.search = search;
+        const ledgerId = searchParams.get('ledger');
+        if (ledgerId) params.ledger = ledgerId;
+        if (khataRange) params.range = khataRange;
+        setSearchParams(params, { replace: true });
+
+        fetchCustomers();
+        if (isAdmin) fetchStores();
+    }, [page, search]);
+
+    // Handle deep link for ledger
+    useEffect(() => {
+        const ledgerId = searchParams.get('ledger');
+        if (ledgerId && customers.length > 0) {
+            const cust = customers.find(c => c.id === ledgerId);
+            if (cust) {
+                openKhata(cust);
+            }
+        }
+    }, [searchParams, customers]);
 
     const fetchCustomers = async () => {
         setLoading(true);
@@ -57,11 +84,27 @@ export default function CustomersPage() {
         setSelectedCustomer(customer);
         setKhataOpen(true);
         try {
-            const { data } = await customerAPI.getLedger(customer.id, { limit: 50 });
+            const { startDate, endDate } = resolveDateRange(khataRange);
+            const { data } = await customerAPI.getLedger(customer.id, {
+                limit: 50,
+                startDate,
+                endDate
+            });
             setLedgerEntries(data.data || []);
             setLedgerPag(data.pagination);
         } catch (err) { console.error(err); }
     };
+
+    // Re-fetch ledger when range changes
+    useEffect(() => {
+        if (khataOpen && selectedCustomer) {
+            openKhata(selectedCustomer);
+            // Sync range to URL
+            const params = Object.fromEntries(searchParams);
+            params.range = khataRange;
+            setSearchParams(params, { replace: true });
+        }
+    }, [khataRange]);
 
     const openPayment = (customer) => {
         setPayForm({ customerId: customer.id, amount: '', paymentMethod: 'CASH', description: '', reference: '' });
@@ -252,13 +295,37 @@ export default function CustomersPage() {
             </Modal>
 
             {/* Khata (Ledger) Modal */}
-            <Modal isOpen={khataOpen} onClose={() => setKhataOpen(false)}
-                title={`${t('customers.khataTitle')} - ${selectedCustomer?.name}`} size="lg">
-                <div className="p-4 rounded-xl bg-surface-800/30 flex items-center justify-between mb-4">
-                    <span className="text-surface-400">{t('customers.balance')}</span>
-                    <span className={`text-xl font-bold ${Number(selectedCustomer?.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {formatCurrency(selectedCustomer?.balance)}
-                    </span>
+            <Modal
+                isOpen={khataOpen}
+                onClose={() => {
+                    setKhataOpen(false);
+                    // Clear ledger from URL
+                    const params = Object.fromEntries(searchParams);
+                    delete params.ledger;
+                    delete params.range;
+                    setSearchParams(params, { replace: true });
+                }}
+                title={`${t('customers.khataTitle')} - ${selectedCustomer?.name}`}
+                size="lg"
+            >
+                <div className="flex items-center justify-between mb-4 gap-4">
+                    <div className="flex-1 p-4 rounded-xl bg-surface-800/30 flex items-center justify-between">
+                        <span className="text-surface-400">{t('customers.balance')}</span>
+                        <span className={`text-xl font-bold ${Number(selectedCustomer?.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(selectedCustomer?.balance)}
+                        </span>
+                    </div>
+                    <select
+                        className="select-field w-40 py-4"
+                        value={khataRange}
+                        onChange={(e) => setKhataRange(e.target.value)}
+                    >
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="month">This Month</option>
+                    </select>
                 </div>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                     {ledgerEntries.length === 0 ? (

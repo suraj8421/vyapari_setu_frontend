@@ -29,7 +29,7 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
             {/* Background Effects */}
-            <div className="absolute inset-0 bg-surface-950">
+            <div className="absolute inset-0 bg-background-cream">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl animate-pulse-slow" />
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1.5s' }} />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-500/5 rounded-full blur-3xl" />
@@ -149,10 +149,10 @@ export default function LoginPage() {
                 <div className="mt-4 p-3 rounded-xl bg-surface-800/50 border border-surface-700/50 text-center">
                     <p className="text-xs text-surface-500">Demo Credentials</p>
                     <p className="text-xs text-surface-400 mt-1">
-                        Admin: <span className="text-primary-400">admin@khata.com</span> / <span className="text-primary-400">admin123</span>
+                        Admin: <span className="text-primary-400">admin@vyaparisetu.com</span> / <span className="text-primary-400">admin123</span>
                     </p>
                     <p className="text-xs text-surface-400">
-                        Staff: <span className="text-primary-400">staff@khata.com</span> / <span className="text-primary-400">admin123</span>
+                        Staff: <span className="text-primary-400">staff@vyaparisetu.com</span> / <span className="text-primary-400">admin123</span>
                     </p>
                 </div>
             </div>

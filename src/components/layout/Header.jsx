@@ -37,7 +37,7 @@ export default function Header({ onMenuToggle }) {
     }, []);
 
     return (
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200">
+        <header className="sticky top-0 z-30 bg-background-cream/80 backdrop-blur-xl border-b border-gray-200">
             <div className="flex items-center justify-between px-4 lg:px-6 py-3">
                 {/* Left: Menu toggle + Page title */}
                 <div className="flex items-center gap-3">

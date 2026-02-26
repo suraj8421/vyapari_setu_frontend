@@ -105,7 +105,8 @@ export default function ProductsPage() {
             };
 
             if (editProduct) {
-                await productAPI.update(editProduct.id, payload);
+                const { initialStock, ...updatePayload } = payload;
+                await productAPI.update(editProduct.id, updatePayload);
             } else {
                 await productAPI.create(payload);
             }
@@ -132,10 +133,39 @@ export default function ProductsPage() {
         new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val || 0);
 
     const getStockBadge = (product) => {
+        const inventory = product.inventory?.[0];
         const totalStock = product.inventory?.reduce((s, i) => s + i.quantity, 0) || 0;
-        const minLevel = product.inventory?.[0]?.minStockLevel || 10;
-        if (totalStock === 0) return <span className="badge-danger">{t('products.outOfStock')}</span>;
-        if (totalStock <= minLevel) return <span className="badge-warning">{t('products.lowStock')} ({totalStock})</span>;
+        const minLevel = inventory?.minStockLevel || 10;
+        const maxLevel = inventory?.maxStockLevel;
+
+        // Calculate reorder suggestion on the fly if the item is low stock:
+        // Priority 1: Use maxStockLevel if defined to fill the quota.
+        // Priority 2: Fallback to filling up to double the min level (buffer strategy).
+        let suggestion = 0;
+        if (totalStock <= minLevel) {
+            if (maxLevel && maxLevel > totalStock) {
+                suggestion = maxLevel - totalStock;
+            } else {
+                suggestion = Math.max(minLevel * 2 - totalStock, 10);
+            }
+        }
+
+        if (totalStock === 0) return (
+            <div className="flex flex-col gap-1">
+                <span className="badge-danger">{t('products.outOfStock')}</span>
+                <span className="text-[10px] font-bold text-primary-600">
+                    💡 {t('products.reorderSuggestion', { count: suggestion })}
+                </span>
+            </div>
+        );
+        if (totalStock <= minLevel) return (
+            <div className="flex flex-col gap-1">
+                <span className="badge-warning">{t('products.lowStock')} ({totalStock})</span>
+                <span className="text-[10px] font-bold text-primary-600">
+                    💡 {t('products.reorderSuggestion', { count: suggestion })}
+                </span>
+            </div>
+        );
         return <span className="badge-success">{t('products.inStock')} ({totalStock})</span>;
     };
 
@@ -275,7 +305,13 @@ export default function ProductsPage() {
                         </div>
                         <div>
                             <label className="input-label">{t('products.gstRate')}</label>
-                            <input type="number" step="0.01" className="input-field" value={form.gstRate} onChange={(e) => setForm({ ...form, gstRate: e.target.value })} />
+                            <select className="select-field" value={form.gstRate} onChange={(e) => setForm({ ...form, gstRate: e.target.value })}>
+                                <option value="0">0%</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18">18%</option>
+                                <option value="28">28%</option>
+                            </select>
                         </div>
                         <div>
                             <label className="input-label">{t('products.hsnCode')}</label>

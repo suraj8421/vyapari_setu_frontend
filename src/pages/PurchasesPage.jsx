@@ -18,7 +18,7 @@ export default function PurchasesPage() {
     const [saving, setSaving] = useState(false);
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
-    const [items, setItems] = useState([{ productId: '', quantity: 1, unitPrice: 0 }]);
+    const [items, setItems] = useState([{ productId: '', quantity: 1, unitPrice: 0, gstRate: 0 }]);
     const [form, setForm] = useState({ storeId: user?.storeId || '', supplierId: '', invoiceNumber: '', notes: '' });
 
     useEffect(() => { fetchPurchases(); }, [page]);
@@ -36,24 +36,28 @@ export default function PurchasesPage() {
     const openNew = async () => {
         const [p, s] = await Promise.all([productAPI.getAll({ limit: 200 }), supplierAPI.getAll({ limit: 100 })]);
         setProducts(p.data.data || []); setSuppliers(s.data.data || []);
-        setItems([{ productId: '', quantity: 1, unitPrice: 0 }]);
+        setItems([{ productId: '', quantity: 1, unitPrice: 0, gstRate: 0 }]);
         setForm({ storeId: user?.storeId || '', supplierId: '', invoiceNumber: '', notes: '' });
         setModalOpen(true);
     };
 
     const updateItem = (idx, field, value) => {
         const u = [...items]; u[idx] = { ...u[idx], [field]: value };
-        if (field === 'productId') { const pr = products.find(p => p.id === value); if (pr) u[idx].unitPrice = Number(pr.costPrice); }
+        if (field === 'productId') { const pr = products.find(p => p.id === value); if (pr) { u[idx].unitPrice = Number(pr.costPrice); u[idx].gstRate = Number(pr.gstRate); } }
         setItems(u);
     };
 
-    const calcTotal = () => items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+    const calcTotal = () => items.reduce((s, i) => {
+        const sub = i.unitPrice * i.quantity;
+        const tax = (sub * (Number(i.gstRate) || 0)) / 100;
+        return s + sub + tax;
+    }, 0);
     const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v || 0);
 
     const handleSubmit = async (e) => {
         e.preventDefault(); setSaving(true);
         try {
-            await purchaseAPI.create({ ...form, paidAmount: calcTotal(), items: items.filter(i => i.productId).map(i => ({ productId: i.productId, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice) })) });
+            await purchaseAPI.create({ ...form, paidAmount: calcTotal(), items: items.filter(i => i.productId).map(i => ({ productId: i.productId, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice), gstRate: Number(i.gstRate) || 0 })) });
             setModalOpen(false); fetchPurchases();
         } catch (err) { alert(err.response?.data?.message || 'Error'); } finally { setSaving(false); }
     };
@@ -95,13 +99,22 @@ export default function PurchasesPage() {
                     </div>
                     {items.map((item, idx) => (
                         <div key={idx} className="grid grid-cols-12 gap-2 p-3 rounded-xl bg-surface-800/30">
-                            <div className="col-span-5"><select className="select-field py-2" value={item.productId} onChange={e => updateItem(idx, 'productId', e.target.value)} required><option value="">--</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-                            <div className="col-span-3"><input type="number" min="1" className="input-field py-2" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></div>
-                            <div className="col-span-3"><input type="number" step="0.01" className="input-field py-2" value={item.unitPrice} onChange={e => updateItem(idx, 'unitPrice', e.target.value)} /></div>
+                            <div className="col-span-4"><select className="select-field py-2" value={item.productId} onChange={e => updateItem(idx, 'productId', e.target.value)} required><option value="">--</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                            <div className="col-span-2"><input type="number" min="1" className="input-field py-2" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></div>
+                            <div className="col-span-2"><input type="number" step="0.01" className="input-field py-2" value={item.unitPrice} onChange={e => updateItem(idx, 'unitPrice', e.target.value)} /></div>
+                            <div className="col-span-3">
+                                <select className="select-field py-2" value={item.gstRate} onChange={e => updateItem(idx, 'gstRate', e.target.value)}>
+                                    <option value="0">0%</option>
+                                    <option value="5">5%</option>
+                                    <option value="12">12%</option>
+                                    <option value="18">18%</option>
+                                    <option value="28">28%</option>
+                                </select>
+                            </div>
                             <div className="col-span-1"><button type="button" onClick={() => items.length > 1 && setItems(items.filter((_, i) => i !== idx))} className="p-2 text-red-400"><HiOutlineTrash className="w-4 h-4" /></button></div>
                         </div>
                     ))}
-                    <button type="button" onClick={() => setItems([...items, { productId: '', quantity: 1, unitPrice: 0 }])} className="btn-ghost btn-sm text-primary-400"><HiOutlinePlus className="w-4 h-4" /> {t('sales.addItem')}</button>
+                    <button type="button" onClick={() => setItems([...items, { productId: '', quantity: 1, unitPrice: 0, gstRate: 0 }])} className="btn-ghost btn-sm text-primary-400"><HiOutlinePlus className="w-4 h-4" /> {t('sales.addItem')}</button>
                     <div className="flex items-center justify-between p-4 rounded-xl bg-surface-800/30">
                         <span className="text-surface-400">{t('common.total')}:</span>
                         <span className="text-xl font-bold">{fmt(calcTotal())}</span>

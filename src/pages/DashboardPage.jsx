@@ -3,6 +3,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { dashboardAPI, productAPI, customerAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -21,10 +22,11 @@ import {
     ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts';
 
-const CHART_COLORS = ['#10b981', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e'];
+const CHART_COLORS = ['#f59e0b', '#f97316', '#fbbf24', '#ea580c', '#c2410c', '#84cc16', '#10b981', '#d97706'];
 
 export default function DashboardPage() {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [overview, setOverview] = useState(null);
     const [salesChart, setSalesChart] = useState([]);
     const [topProducts, setTopProducts] = useState([]);
@@ -76,52 +78,58 @@ export default function DashboardPage() {
             icon: HiOutlineShoppingCart,
             color: 'stat-card-emerald',
             iconColor: 'text-emerald-500',
-            valueColor: 'text-emerald-600', // Amount Received -> Green
+            valueColor: 'text-emerald-600',
+            path: '/sales?range=today'
         },
         {
-            label: t('dashboard.monthSales'),
-            value: formatCurrency(overview?.monthSales?.amount),
-            sub: `${overview?.monthSales?.count || 0} ${t('dashboard.transactions')}`,
-            icon: HiOutlineArrowTrendingUp,
+            label: t('dashboard.todayPayments'),
+            value: formatCurrency(overview?.todayPayments?.amount),
+            sub: `${overview?.todayPayments?.count || 0} payments collected`,
+            icon: HiOutlineCurrencyRupee,
             color: 'stat-card-emerald',
             iconColor: 'text-emerald-500',
-            valueColor: 'text-emerald-600', // Amount Received -> Green
+            valueColor: 'text-emerald-600',
+            path: '/reports/payments?range=today'
         },
         {
-            label: t('dashboard.profitThisMonth'),
-            value: formatCurrency(overview?.profitThisMonth),
-            sub: overview?.profitThisMonth >= 0 ? '▲ Positive' : '▼ Loss',
-            icon: HiOutlineCurrencyRupee,
-            color: overview?.profitThisMonth >= 0 ? 'stat-card-emerald' : 'stat-card-rose',
-            iconColor: overview?.profitThisMonth >= 0 ? 'text-emerald-500' : 'text-red-500',
-            valueColor: overview?.profitThisMonth >= 0 ? 'text-emerald-600' : 'text-red-600',
+            label: "Credit Given Today",
+            value: formatCurrency(overview?.todaySales?.amount - overview?.todayPayments?.amount),
+            sub: `Outstanding from today`,
+            icon: HiOutlineArrowTrendingUp,
+            color: 'stat-card-rose',
+            iconColor: 'text-red-500',
+            valueColor: 'text-red-400',
+            path: '/sales?range=today&paymentMethod=CREDIT'
         },
         {
-            label: t('dashboard.totalProducts'),
-            value: overview?.totalProducts || 0,
-            sub: `${overview?.lowStockCount || 0} ${t('dashboard.lowStock')}`,
-            icon: HiOutlineCube,
-            color: 'stat-card-indigo',
-            iconColor: 'text-blue-500',
-            valueColor: 'text-blue-600', // Main Number -> Blue
-        },
-        {
-            label: t('dashboard.outstandingCredit'),
+            label: t('dashboard.pendingLoan'),
             value: formatCurrency(overview?.outstandingCredit?.amount),
             sub: `${overview?.outstandingCredit?.count || 0} ${t('dashboard.totalCustomers')}`,
             icon: HiOutlineExclamationTriangle,
-            color: 'stat-card-rose', // Amount Due -> Red card accent
+            color: 'stat-card-rose',
             iconColor: 'text-red-500',
-            valueColor: 'text-red-600', // Amount Due -> Red
+            valueColor: 'text-red-600',
+            path: '/customers?filter=due'
+        },
+        {
+            label: t('dashboard.lowStockItems'),
+            value: overview?.lowStockCount || 0,
+            sub: "Items needing reorder",
+            icon: HiOutlineCube,
+            color: 'stat-card-amber',
+            iconColor: 'text-amber-500',
+            valueColor: 'text-amber-600',
+            path: '/products?filter=low-stock'
         },
         {
             label: t('dashboard.totalCustomers'),
             value: overview?.totalCustomers || 0,
             sub: `${overview?.totalSuppliers || 0} ${t('nav.suppliers')}`,
             icon: HiOutlineUsers,
-            color: 'stat-card-cyan',
-            iconColor: 'text-blue-400',
-            valueColor: 'text-blue-600', // Main Number -> Blue
+            color: 'stat-card-amber',
+            iconColor: 'text-amber-400',
+            valueColor: 'text-amber-600',
+            path: '/customers'
         },
     ];
 
@@ -138,7 +146,13 @@ export default function DashboardPage() {
             {/* Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-stagger">
                 {statCards.map((stat, idx) => (
-                    <div key={idx} className={`stat-card ${stat.color} group`}>
+                    <div
+                        key={idx}
+                        className={`stat-card ${stat.color} group cursor-pointer hover:shadow-lg active:scale-[0.98] transition-all duration-200 border border-transparent hover:border-surface-600 focus:ring-2 focus:ring-primary-500 outline-none`}
+                        onClick={() => navigate(stat.path)}
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && navigate(stat.path)}
+                    >
                         <div className="flex items-start justify-between">
                             <div>
                                 <p className="text-sm text-surface-500 mb-1">{stat.label}</p>
@@ -238,10 +252,16 @@ export default function DashboardPage() {
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                         {lowStock.length > 0 ? (
                             lowStock.slice(0, 10).map((item) => (
-                                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => navigate('/products')}>
                                     <div>
                                         <p className="text-sm font-medium text-surface-900">{item.product?.name}</p>
                                         <p className="text-xs text-surface-500">SKU: {item.product?.sku}</p>
+                                        {/* Display 'Order X more' if a reorder suggestion is available from the backend */}
+                                        {item.reorderSuggestion > 0 && (
+                                            <p className="text-xs font-semibold text-primary-600 mt-1">
+                                                💡 {t('products.reorderSuggestion', { count: item.reorderSuggestion })} {item.product?.unit}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="text-right">
                                         <span className={`badge ${item.quantity === 0 ? 'badge-danger' : 'badge-warning'}`}>
@@ -266,7 +286,11 @@ export default function DashboardPage() {
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                         {outstanding.length > 0 ? (
                             outstanding.slice(0, 10).map((cust) => (
-                                <div key={cust.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                                <div
+                                    key={cust.id}
+                                    className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-surface-800/40 dark:hover:bg-surface-800 transition-colors cursor-pointer group"
+                                    onClick={() => navigate(`/customers?ledger=${cust.id}&range=30d`)}
+                                >
                                     <div>
                                         <p className="text-sm font-medium text-surface-900">{cust.name}</p>
                                         <p className="text-xs text-surface-500">{cust.phone}</p>

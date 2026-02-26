@@ -6,7 +6,7 @@ const hi = {
     translation: {
         // ─── Common ─────────────────────────────
         common: {
-            appName: 'खाताबुक',
+            appName: 'व्यापारी सेतु',
             tagline: 'इन्वेंटरी और खाता प्रबंधन',
             search: 'खोजें...',
             save: 'सहेजें',
@@ -50,6 +50,13 @@ const hi = {
             category: 'श्रेणी',
             createdAt: 'बनाया गया',
             updatedAt: 'अपडेट किया गया',
+            allTime: 'कुल समय',
+            today: 'आज',
+            yesterday: 'बीता हुआ कल',
+            last7Days: 'पिछले 7 दिन',
+            last30Days: 'पिछले 30 दिन',
+            thisMonth: 'इस महीने',
+            custom: 'कस्टम रेंज',
         },
 
         // ─── Auth ───────────────────────────────
@@ -95,8 +102,10 @@ const hi = {
         dashboard: {
             title: 'डैशबोर्ड',
             welcomeBack: 'वापस स्वागत है',
-            todaySales: 'आज की बिक्री',
+            todaySales: 'आज की बिक्री (इनवॉइस)',
+            todayPayments: 'आज प्राप्त भुगतान',
             monthSales: 'इस महीने की बिक्री',
+            pendingLoan: 'कुल बकाया ऋण',
             todayPurchases: 'आज की खरीदारी',
             monthPurchases: 'इस महीने की खरीदारी',
             totalProducts: 'कुल उत्पाद',
@@ -139,6 +148,7 @@ const hi = {
             lowStock: 'कम स्टॉक',
             outOfStock: 'स्टॉक में नहीं',
             inStock: 'स्टॉक में',
+            reorderSuggestion: '{{count}} और ऑर्डर करें',
             categories: 'श्रेणियाँ',
             category_list: {
                 'Rice & Grains': 'चावल और अनाज',
@@ -267,6 +277,9 @@ const hi = {
             grossProfit: 'सकल लाभ',
             netGST: 'शुद्ध जीएसटी',
             totalDiscount: 'कुल छूट',
+            paymentsReceived: 'प्राप्त भुगतान',
+            period: 'अवधि',
+            reportType: 'रिपोर्ट का प्रकार',
         },
 
         // ─── Language ───────────────────────────

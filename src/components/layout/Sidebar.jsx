@@ -24,6 +24,7 @@ export default function Sidebar({ isOpen, onClose }) {
     const { user, isAdmin, logout } = useAuth();
 
     const navItems = [
+        { to: '/entry', icon: HiOutlineClipboardDocumentList, label: 'New Entry (Unified)' },
         { to: '/dashboard', icon: HiOutlineChartBarSquare, label: t('nav.dashboard') },
         { to: '/products', icon: HiOutlineCube, label: t('nav.products') },
         { to: '/sales', icon: HiOutlineShoppingCart, label: t('nav.sales') },
@@ -49,7 +50,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
             {/* Sidebar */}
             <aside
-                className={`fixed top-0 left-0 h-full w-64 bg-white/95 backdrop-blur-xl 
+                className={`fixed top-0 left-0 h-full w-64 bg-background-cream/95 backdrop-blur-xl 
                      border-r border-gray-200 z-50 transform transition-transform duration-300
                      lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >

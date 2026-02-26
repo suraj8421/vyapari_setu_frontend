@@ -6,7 +6,7 @@ const en = {
     translation: {
         // ─── Common ─────────────────────────────
         common: {
-            appName: 'KhataBook',
+            appName: 'Vyaparisetu',
             tagline: 'Inventory & Ledger Management',
             search: 'Search...',
             save: 'Save',
@@ -50,6 +50,13 @@ const en = {
             category: 'Category',
             createdAt: 'Created at',
             updatedAt: 'Updated at',
+            allTime: 'All Time',
+            today: 'Today',
+            yesterday: 'Yesterday',
+            last7Days: 'Last 7 Days',
+            last30Days: 'Last 30 Days',
+            thisMonth: 'This Month',
+            custom: 'Custom Range',
         },
 
         // ─── Auth ───────────────────────────────
@@ -95,8 +102,10 @@ const en = {
         dashboard: {
             title: 'Dashboard',
             welcomeBack: 'Welcome back',
-            todaySales: "Today's Sales",
+            todaySales: "Today's Sales (Invoiced)",
+            todayPayments: "Today's Payments Received",
             monthSales: "This Month's Sales",
+            pendingLoan: "Pending Loan Amount",
             todayPurchases: "Today's Purchases",
             monthPurchases: "This Month's Purchases",
             totalProducts: 'Total Products',
@@ -139,6 +148,7 @@ const en = {
             lowStock: 'Low Stock',
             outOfStock: 'Out of Stock',
             inStock: 'In Stock',
+            reorderSuggestion: 'Order {{count}} more',
             categories: 'Categories',
             category_list: {
                 'Rice & Grains': 'Rice & Grains',
@@ -267,6 +277,9 @@ const en = {
             grossProfit: 'Gross Profit',
             netGST: 'Net GST',
             totalDiscount: 'Total Discount',
+            paymentsReceived: 'Payments Received',
+            period: 'Period',
+            reportType: 'Report Type',
         },
 
         // ─── Language ───────────────────────────
