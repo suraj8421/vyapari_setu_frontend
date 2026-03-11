@@ -108,6 +108,8 @@ export const saleAPI = {
     getAll: (params) => api.get('/sales', { params }),
     getById: (id) => api.get(`/sales/${id}`),
     create: (data) => api.post('/sales', data),
+    // FIX: Added updateStatus method — was missing despite SaleStatus enum having RETURNED etc.
+    updateStatus: (id, data) => api.patch(`/sales/${id}/status`, data),
 };
 
 // Purchases
@@ -115,6 +117,8 @@ export const purchaseAPI = {
     getAll: (params) => api.get('/purchases', { params }),
     getById: (id) => api.get(`/purchases/${id}`),
     create: (data) => api.post('/purchases', data),
+    // FIX: Added updateStatus method — was missing despite PurchaseStatus enum having CANCELLED etc.
+    updateStatus: (id, data) => api.patch(`/purchases/${id}/status`, data),
 };
 
 // Customers
@@ -147,4 +151,25 @@ export const userAPI = {
     delete: (id) => api.delete(`/users/${id}`),
 };
 
+// Transactions (Unified Entry)
+export const transactionAPI = {
+    create: (data) => api.post('/transactions', data),
+    update: (type, id, data) => api.put(`/transactions/${type}/${id}`, data),
+    getHistory: (type, id) => api.get(`/transactions/${type}/${id}/history`),
+    // FIX: Updated approve/reject to use the new /logs/:logId/* URL pattern
+    // (old /approve/:logId had a potential route conflict)
+    approve: (logId) => api.post(`/transactions/logs/${logId}/approve`),
+    reject: (logId, notes) => api.post(`/transactions/logs/${logId}/reject`, { notes }),
+    // FIX: Added getPending — was completely missing, admins had no discovery mechanism
+    getPending: () => api.get('/transactions/pending'),
+};
+
+// FIX: New expense API — expenses had no listing/management endpoints previously
+export const expenseAPI = {
+    getAll: (params) => api.get('/expenses', { params }),
+    getById: (id) => api.get(`/expenses/${id}`),
+    getCategories: () => api.get('/expenses/categories'),
+};
+
 export default api;
+

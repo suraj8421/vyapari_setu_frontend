@@ -1,9 +1,17 @@
 /**
- * Resolves a range string into startDate and endDate
- * @param {string} range - today, yesterday, 7d, 30d, month
+ * Resolves a range string into startDate and endDate.
+ * @param {string} range - today, yesterday, 7d, 30d, month, custom
  * @returns {{startDate: string, endDate: string}}
  */
 export const resolveDateRange = (range) => {
+    // FIX: 'custom' was previously falling through to the default case which
+    // returned empty strings ''. This overwrote the user's manual date inputs
+    // every time the component re-rendered or the dateRange state changed.
+    // Now 'custom' returns null to signal "don't overwrite the existing dates".
+    if (range === 'custom') {
+        return null; // Caller must handle null and keep existing custom dates
+    }
+
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 

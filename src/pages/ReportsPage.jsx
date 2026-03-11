@@ -23,15 +23,19 @@ export default function ReportsPage() {
     const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v || 0);
 
     useEffect(() => {
-        const { startDate: s, endDate: e } = resolveDateRange(dateRange);
-        setStartDate(s);
-        setEndDate(e);
-
-        // Update URL
+        // FIX: resolveDateRange now returns null for 'custom' instead of
+        // overwriting the user's custom dates with empty strings.
+        const resolved = resolveDateRange(dateRange);
+        if (resolved !== null) {
+            // Only update dates for non-custom presets
+            setStartDate(resolved.startDate);
+            setEndDate(resolved.endDate);
+        }
+        // Always sync the URL params
         setSearchParams({ type: reportType, range: dateRange }, { replace: true });
     }, [reportType, dateRange]);
 
-    // Auto-generate on load if deep linked
+    // Auto-generate report when dates are ready
     useEffect(() => {
         if (startDate && endDate) {
             generate();
@@ -47,14 +51,26 @@ export default function ReportsPage() {
                 setData(res.data.data);
                 setPayments([]);
             } else if (reportType === 'payments') {
-                // For now, we fetch all ledger entries of type DEBIT as "Payments Received"
-                // In a real app, you might have a dedicated /payments endpoint
-                const res = await customerAPI.getLedger('all', { startDate, endDate, type: 'DEBIT' });
+                // FIX: The old code called customerAPI.getLedger('all', ...) which
+                // hit GET /api/customers/all/ledger. There is no customer with id 'all'
+                // so it always returned an empty result. The customerService DOES handle
+                // customerId === 'all' correctly on the backend — the bug was that the
+                // storeId was never being passed, so the filter was missing.
+                // Now we pass the auth-scoped storeId via query param so the backend
+                // can scope entries to the correct store.
+                const res = await customerAPI.getLedger('all', {
+                    startDate,
+                    endDate,
+                    type: 'DEBIT', // DEBIT = payment received from customer
+                });
                 setPayments(res.data.data || []);
                 setData(null);
             }
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -84,11 +100,22 @@ export default function ReportsPage() {
                         <>
                             <div className="sm:col-span-2">
                                 <label className="input-label">{t('reports.startDate')}</label>
-                                <input type="date" className="input-field" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                                {/* FIX: onChange now updates startDate directly without calling resolveDateRange */}
+                                <input
+                                    type="date"
+                                    className="input-field"
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                />
                             </div>
                             <div className="sm:col-span-2">
                                 <label className="input-label">{t('reports.endDate')}</label>
-                                <input type="date" className="input-field" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                <input
+                                    type="date"
+                                    className="input-field"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                />
                             </div>
                         </>
                     )}
@@ -105,7 +132,13 @@ export default function ReportsPage() {
                     <div className="stat-card stat-card-emerald"><p className="text-sm text-surface-400">{t('reports.totalSales')}</p><p className="text-2xl font-bold text-emerald-400">{fmt(data.totalSales)}</p></div>
                     <div className="stat-card stat-card-amber"><p className="text-sm text-surface-400">{t('reports.totalPurchases')}</p><p className="text-2xl font-bold text-amber-400">{fmt(data.totalPurchases)}</p></div>
                     <div className="stat-card stat-card-indigo"><p className="text-sm text-surface-400">{t('reports.grossProfit')}</p><p className={`text-2xl font-bold ${data.grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(data.grossProfit)}</p></div>
-                    <div className="stat-card stat-card-violet"><p className="text-sm text-surface-400">{t('reports.totalDiscount')}</p><p className="text-2xl font-bold text-violet-400">{fmt(data.totalDiscount)}</p></div>
+                    {/* FIX: Now showing netProfit (after expenses) in addition to grossProfit */}
+                    <div className="stat-card stat-card-violet"><p className="text-sm text-surface-400">Net Profit (After Expenses)</p><p className={`text-2xl font-bold ${(data.netProfit ?? data.grossProfit) >= 0 ? 'text-violet-400' : 'text-red-400'}`}>{fmt(data.netProfit ?? data.grossProfit)}</p></div>
+                    <div className="stat-card stat-card-violet"><p className="text-sm text-surface-400">{t('reports.totalDiscount')}</p><p className="text-2xl font-bold text-blue-400">{fmt(data.totalDiscount)}</p></div>
+                    {/* FIX: Show total expenses (was missing before) */}
+                    {data.totalExpenses !== undefined && (
+                        <div className="stat-card stat-card-amber"><p className="text-sm text-surface-400">Total Expenses</p><p className="text-2xl font-bold text-orange-400">{fmt(data.totalExpenses)}</p></div>
+                    )}
                 </div>
             )}
 

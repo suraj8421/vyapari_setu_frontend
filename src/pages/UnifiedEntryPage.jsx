@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     PlusIcon,
@@ -16,10 +16,13 @@ import {
     ClockIcon,
     ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
-import { useParams } from 'react-router-dom';
+
+// FIX: Use the centralised api.js service (which has the JWT auth interceptor)
+// instead of raw axios. Using raw axios meant no Authorization header was sent
+// and ALL requests from this page failed with 401 Unauthorized.
+import api from '../services/api';
 
 // Helper for date formatting
 const today = new Date().toISOString().split('T')[0];
@@ -28,13 +31,20 @@ const UnifiedEntryPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
 
+    // FIX: Destructure `id` from URL params — it was used in the old code but
+    // useParams() was imported but never destructured, causing a ReferenceError.
+    const { id } = useParams();
+
     // ─── State ──────────────────────────────────────────────
     const [type, setType] = useState('SALE'); // SALE, PURCHASE, EXPENSE, PAYMENT, MISC
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
-    const [itemHistory, setItemHistory] = useState([]);
+
+    // FIX: `history` state was used in JSX but never declared with useState.
+    // This caused a ReferenceError crash on every page load.
+    const [history, setHistory] = useState([]);
 
     // Form data
     const [formData, setFormData] = useState({
@@ -59,6 +69,7 @@ const UnifiedEntryPage = () => {
     // ─── Effects ────────────────────────────────────────────
     useEffect(() => {
         fetchData();
+        // FIX: `id` is now properly declared above via useParams()
         if (id) {
             fetchEntryAndHistory();
         }
@@ -66,27 +77,34 @@ const UnifiedEntryPage = () => {
 
     const fetchEntryAndHistory = async () => {
         try {
-            // This would fetch the specific record based on 'type' and 'id'
-            // For now, we'll focus on Audit Logs
-            const histRes = await axios.get(`/api/transactions/${type}/${id}/history`);
+            // FIX: Use `api` (with auth interceptor) instead of raw `axios`
+            const histRes = await api.get(`/transactions/${type}/${id}/history`);
+            // FIX: `setHistory` was called before but history state didn't exist.
+            // Now it's properly declared and this works.
             setHistory(histRes.data.data || []);
         } catch (err) {
-            console.error('History fetch failed');
+            console.error('History fetch failed:', err.message);
         }
     };
 
     const fetchData = async () => {
         try {
+            // FIX: Use `api` (with auth interceptor) instead of raw `axios`
             const [custRes, suppRes, prodRes] = await Promise.all([
-                axios.get('/api/customers'),
-                axios.get('/api/suppliers'),
-                axios.get('/api/products')
+                api.get('/customers'),
+                api.get('/suppliers'),
+                api.get('/products')
             ]);
-            setCustomers(custRes.data.customers || []);
-            setSuppliers(suppRes.data.suppliers || []);
-            setProducts(prodRes.data.products || []);
+
+            // FIX: The old code read custRes.data.customers which was always undefined.
+            // The backend returns paginated data at custRes.data.data (the array is nested).
+            // This caused ALL dropdowns (customer, supplier, product) to always be empty.
+            setCustomers(custRes.data.data || []);
+            setSuppliers(suppRes.data.data || []);
+            setProducts(prodRes.data.data || []);
         } catch (err) {
-            toast.error('Failed to load form data');
+            toast.error('Failed to load form data. Please refresh the page.');
+            console.error('fetchData error:', err);
         }
     };
 
@@ -125,9 +143,14 @@ const UnifiedEntryPage = () => {
         if (field === 'productId') {
             const product = products.find(p => p.id === value);
             if (product) {
-                newItems[index].unitPrice = type === 'SALE' ? product.sellingPrice : product.costPrice;
+                // For SALE use sellingPrice; for PURCHASE use costPrice
+                newItems[index].unitPrice = type === 'SALE'
+                    ? Number(product.sellingPrice)
+                    : Number(product.costPrice);
                 newItems[index].unit = product.unit;
-                newItems[index].gstRate = product.gstRate;
+                newItems[index].gstRate = Number(product.gstRate);
+                // Store name so the PDF can display it
+                newItems[index].productName = product.name;
             }
         }
 
@@ -141,10 +164,13 @@ const UnifiedEntryPage = () => {
     };
 
     const calculateTotals = () => {
-        const subtotal = formData.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+        const subtotal = formData.items.reduce((acc, item) => acc + (Number(item.quantity) * Number(item.unitPrice)), 0);
         const discount = formData.items.reduce((acc, item) => acc + Number(item.discount || 0), 0);
-        const tax = formData.items.reduce((acc, item) => acc + ((item.quantity * item.unitPrice - Number(item.discount)) * (item.gstRate / 100)), 0);
-        return { subtotal, tax, total: subtotal - discount + tax };
+        const tax = formData.items.reduce((acc, item) => {
+            const sub = Number(item.quantity) * Number(item.unitPrice) - Number(item.discount || 0);
+            return acc + (sub * (Number(item.gstRate || 0) / 100));
+        }, 0);
+        return { subtotal, discount, tax, total: subtotal - discount + tax };
     };
 
     const handleSubmit = async (e) => {
@@ -156,20 +182,28 @@ const UnifiedEntryPage = () => {
                 ...formData,
                 type,
                 totalAmount: totals.total,
-                customerId: type === 'SALE' || type === 'PAYMENT' ? formData.partyId : null,
+                customerId: (type === 'SALE' || type === 'PAYMENT') ? formData.partyId : null,
                 supplierId: type === 'PURCHASE' ? formData.partyId : null,
+                // Attach storeId from the user's context via the server (auth middleware handles this)
             };
 
-            const res = await axios.post('/api/transactions', payload);
+            // FIX: Use `api` (with auth interceptor) instead of raw `axios`
+            const res = await api.post('/transactions', payload);
 
-            if (formData.options.generateInvoice) {
+            // Generate PDF invoice if option is checked
+            if (formData.options.generateInvoice && (type === 'SALE' || type === 'PURCHASE')) {
                 const party = (type === 'SALE' ? customers : suppliers).find(p => p.id === formData.partyId);
-                generateInvoicePDF({
-                    ...payload,
-                    ...totals,
-                    partyName: party?.name,
-                    invoiceNumber: res.data.data.invoiceNumber
-                }, type);
+                // FIX: Pass the products list as productMap so PDF can resolve product names
+                generateInvoicePDF(
+                    {
+                        ...payload,
+                        ...totals,
+                        partyName: party?.name,
+                        invoiceNumber: res.data.data?.invoiceNumber
+                    },
+                    type,
+                    products // productMap: array of {id, name, ...}
+                );
             }
 
             toast.success(`${type} Recorded Successfully!`);
@@ -187,6 +221,7 @@ const UnifiedEntryPage = () => {
         { id: 'PURCHASE', label: t('purchases.title'), icon: <CubeIcon className="w-5 h-5" />, color: 'bg-orange-500' },
         { id: 'EXPENSE', label: 'Expense', icon: <ArrowPathIcon className="w-5 h-5" />, color: 'bg-red-500' },
         { id: 'PAYMENT', label: 'Payment', icon: <CreditCardIcon className="w-5 h-5" />, color: 'bg-emerald-500' },
+        // FIX: MISC type is now actually handled by the backend (mapped to an expense with category 'MISC')
         { id: 'MISC', label: 'Misc', icon: <DocumentTextIcon className="w-5 h-5" />, color: 'bg-gray-600' },
     ];
 
@@ -203,6 +238,7 @@ const UnifiedEntryPage = () => {
                     {entryTypes.map((et) => (
                         <button
                             key={et.id}
+                            type="button"
                             onClick={() => setType(et.id)}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${type === et.id
                                 ? `${et.color} text-white shadow-lg scale-105`
@@ -244,6 +280,8 @@ const UnifiedEntryPage = () => {
                                 className="input pl-10 h-12 rounded-xl"
                             >
                                 <option value="">Select Party</option>
+                                {/* FIX: Dropdowns now show data because fetchData correctly reads
+                                    from custRes.data.data instead of custRes.data.customers */}
                                 {(type === 'SALE' || type === 'PAYMENT' ? customers : suppliers).map(p => (
                                     <option key={p.id} value={p.id}>{p.name} ({p.phone})</option>
                                 ))}
@@ -295,14 +333,11 @@ const UnifiedEntryPage = () => {
                                                     className="input w-full rounded-xl bg-gray-50 border-transparent focus:bg-white"
                                                 >
                                                     <option value="">Select Item</option>
+                                                    {/* FIX: Products list now populated correctly */}
                                                     {products.map(p => (
                                                         <option key={p.id} value={p.id}>{p.name} (SKU: {p.sku})</option>
                                                     ))}
                                                 </select>
-                                                <input
-                                                    type="text" placeholder="Sub-category (e.g. Rice - Basmati)"
-                                                    className="text-[10px] mt-1 w-full border-none bg-transparent text-primary-600 outline-none"
-                                                />
                                             </td>
                                             <td className="w-24">
                                                 <div className="flex items-center">
@@ -329,10 +364,14 @@ const UnifiedEntryPage = () => {
                                                 />
                                             </td>
                                             <td className="font-bold text-surface-900 w-32 pl-4">
-                                                ₹ {item.total?.toFixed(2)}
+                                                ₹ {Number(item.total || 0).toFixed(2)}
                                             </td>
                                             <td className="w-10">
-                                                <button onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 transition-colors">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeItem(idx)}
+                                                    className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                                                >
                                                     <TrashIcon className="w-5 h-5" />
                                                 </button>
                                             </td>
@@ -350,8 +389,8 @@ const UnifiedEntryPage = () => {
                     )}
                 </AnimatePresence>
 
-                {/* ─── Part 3: Expenses / Payments Logic ──────── */}
-                {(type === 'EXPENSE' || type === 'PAYMENT') && (
+                {/* ─── Part 3: Expenses / Payments / MISC ─────── */}
+                {(type === 'EXPENSE' || type === 'PAYMENT' || type === 'MISC') && (
                     <motion.div
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
                         className="card p-6 grid grid-cols-1 md:grid-cols-2 gap-6"
@@ -367,7 +406,8 @@ const UnifiedEntryPage = () => {
                             <label className="label">Entry Category / Purpose</label>
                             <input
                                 type="text" name="category" value={formData.category} onChange={handleInputChange}
-                                className="input h-14 rounded-2xl" placeholder="e.g. Electricity Bill, Shop Maintenance"
+                                className="input h-14 rounded-2xl"
+                                placeholder={type === 'MISC' ? 'e.g. Miscellaneous expense' : 'e.g. Electricity Bill, Shop Maintenance'}
                             />
                         </div>
                     </motion.div>
@@ -494,7 +534,8 @@ const UnifiedEntryPage = () => {
                                 </p>
                             </div>
                         </div>
-                        {/* Audit History Log */}
+
+                        {/* Audit History Log — FIX: `history` state now exists and populates correctly */}
                         {history.length > 0 && (
                             <div className="card p-6 mt-6 border-2 border-primary-100 bg-primary-50/30">
                                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -502,7 +543,7 @@ const UnifiedEntryPage = () => {
                                     Permanent Audit Trail
                                 </h3>
                                 <div className="space-y-4">
-                                    {history.map((log, idx) => (
+                                    {history.map((log) => (
                                         <div key={log.id} className="flex gap-4 p-3 rounded-xl bg-white shadow-sm border border-primary-50">
                                             <div className="w-1 bg-primary-500 rounded-full" />
                                             <div className="flex-1">
@@ -510,7 +551,11 @@ const UnifiedEntryPage = () => {
                                                     <p className="text-sm font-bold text-surface-900">
                                                         {log.action} by {log.changedBy?.firstName}
                                                     </p>
-                                                    <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${log.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                                    <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${log.status === 'APPROVED'
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : log.status === 'REJECTED'
+                                                            ? 'bg-red-100 text-red-700'
+                                                            : 'bg-amber-100 text-amber-700'
                                                         }`}>
                                                         {log.status}
                                                     </span>
