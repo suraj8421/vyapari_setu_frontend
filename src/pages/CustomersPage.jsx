@@ -11,9 +11,12 @@ import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { resolveDateRange } from '../utils/dateUtils';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineMagnifyingGlass,
     HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineArrowUp, HiOutlineArrowDown,
+    HiOutlineDocumentArrowDown,
 } from 'react-icons/hi2';
 
 export default function CustomersPage() {
@@ -26,7 +29,7 @@ export default function CustomersPage() {
     const [search, setSearch] = useState(searchParams.get('search') || '');
     const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
     const [stores, setStores] = useState([]);
-    const [khataRange, setKhataRange] = useState(searchParams.get('range') || '30d');
+    const [khataRange, setKhataRange] = useState(searchParams.get('range') || 'all');
 
     // Modals
     const [custModalOpen, setCustModalOpen] = useState(false);
@@ -84,11 +87,11 @@ export default function CustomersPage() {
         setSelectedCustomer(customer);
         setKhataOpen(true);
         try {
-            const { startDate, endDate } = resolveDateRange(khataRange);
+            const rangeData = resolveDateRange(khataRange) || {};
             const { data } = await customerAPI.getLedger(customer.id, {
                 limit: 50,
-                startDate,
-                endDate
+                ...(rangeData.startDate ? { startDate: rangeData.startDate } : {}),
+                ...(rangeData.endDate ? { endDate: rangeData.endDate } : {})
             });
             setLedgerEntries(data.data || []);
             setLedgerPag(data.pagination);
@@ -144,8 +147,103 @@ export default function CustomersPage() {
         finally { setSaving(false); }
     };
 
+    const handleDownloadKhataPDF = () => {
+        if (!selectedCustomer) return;
+
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(20);
+        doc.text('Customer Account Statement', 14, 22);
+
+        doc.setFontSize(12);
+        doc.text(`Customer: ${selectedCustomer.name}`, 14, 32);
+        doc.text(`Phone: ${selectedCustomer.phone || 'N/A'}`, 14, 38);
+
+        // Fetch period text
+        const periodText = khataRange === 'today' ? 'Today' :
+            khataRange === 'yesterday' ? 'Yesterday' :
+                khataRange === '7d' ? 'Last 7 Days' :
+                    khataRange === '30d' ? 'Last 30 Days' :
+                        khataRange === 'month' ? 'This Month' :
+                            khataRange === 'all' ? 'All Time' : 'Custom';
+
+        doc.text(`Period: ${periodText}`, 140, 32);
+
+        // Current balance
+        const balanceNum = Number(selectedCustomer.balance) || 0;
+        doc.text(`Current Balance: ${formatCurrency(balanceNum)}`, 140, 38);
+
+        const tableColumn = ["Date", "Description", "Type", "Amount", "Balance After"];
+        const tableRows = [];
+
+        [...ledgerEntries].reverse().forEach(entry => {
+            const dateStr = new Date(entry.createdAt).toLocaleDateString('en-IN') + ' ' +
+                new Date(entry.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            const typeStr = entry.type === 'CREDIT' ? 'Credit (Borrowed)' : 'Debit (Paid)';
+            const amountStr = formatCurrency(entry.amount);
+            const balanceStr = formatCurrency(entry.balanceAfter);
+
+            tableRows.push([
+                dateStr,
+                entry.description || '-',
+                typeStr,
+                amountStr,
+                balanceStr
+            ]);
+        });
+
+        doc.autoTable({
+            startY: 45,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [59, 130, 246] }, // Blue-500
+            styles: { fontSize: 10 },
+            columnStyles: {
+                3: { halign: 'right' },
+                4: { halign: 'right' }
+            }
+        });
+
+        // Footer
+        const finalY = doc.lastAutoTable.finalY || 45;
+        doc.setFontSize(10);
+        doc.text(`Generated on ${new Date().toLocaleString('en-IN')}`, 14, finalY + 10);
+
+        // Download
+        doc.save(`${selectedCustomer.name.replace(/\s+/g, '_')}_Statement.pdf`);
+    };
+
     const formatCurrency = (val) =>
         new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val || 0);
+
+    const handleExportCSV = () => {
+        if (!customers || customers.length === 0) return;
+
+        let csv = 'Name,Phone,Email,Balance,Credit Limit,Total Sales\n';
+
+        customers.forEach(c => {
+            const name = (c.name || '').replace(/"/g, '""');
+            const phone = c.phone || '';
+            const email = c.email || '';
+            const balance = c.balance || 0;
+            const creditLimit = c.creditLimit || 0;
+            const salesCount = c._count?.sales || 0;
+
+            csv += `"${name}","${phone}","${email}",${balance},${creditLimit},${salesCount}\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `VyapariSetu_Customers_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -154,10 +252,21 @@ export default function CustomersPage() {
                     <h1 className="text-2xl font-bold text-surface-100">{t('customers.title')} / {t('nav.khata')}</h1>
                     <p className="text-surface-500 text-sm">{pagination?.total || 0} {t('common.results')}</p>
                 </div>
-                <button onClick={() => { setSelectedCustomer(null); setForm({ ...emptyForm }); setCustModalOpen(true); }} className="btn-primary" id="add-customer-btn">
-                    <HiOutlinePlus className="w-5 h-5" />
-                    {t('customers.addCustomer')}
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleExportCSV}
+                        disabled={loading || customers.length === 0}
+                        className="btn-secondary flex items-center gap-2"
+                        title="Export Customers to CSV"
+                    >
+                        <HiOutlineDocumentArrowDown className="w-5 h-5" />
+                        <span className="hidden sm:inline">Export CSV</span>
+                    </button>
+                    <button onClick={() => { setSelectedCustomer(null); setForm({ ...emptyForm }); setCustModalOpen(true); }} className="btn-primary" id="add-customer-btn">
+                        <HiOutlinePlus className="w-5 h-5" />
+                        {t('customers.addCustomer')}
+                    </button>
+                </div>
             </div>
 
             {/* Search */}
@@ -315,21 +424,33 @@ export default function CustomersPage() {
                             {formatCurrency(selectedCustomer?.balance)}
                         </span>
                     </div>
-                    <select
-                        className="select-field w-40 py-4"
-                        value={khataRange}
-                        onChange={(e) => setKhataRange(e.target.value)}
-                    >
-                        <option value="today">Today</option>
-                        <option value="yesterday">Yesterday</option>
-                        <option value="7d">Last 7 Days</option>
-                        <option value="30d">Last 30 Days</option>
-                        <option value="month">This Month</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleDownloadKhataPDF}
+                            disabled={ledgerEntries.length === 0}
+                            className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-4 rounded-xl flex items-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                            title="Download Statement PDF"
+                        >
+                            <HiOutlineDocumentArrowDown className="w-5 h-5" />
+                            PDF
+                        </button>
+                        <select
+                            className="select-field w-36 py-3"
+                            value={khataRange}
+                            onChange={(e) => setKhataRange(e.target.value)}
+                        >
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                            <option value="month">This Month</option>
+                        </select>
+                    </div>
                 </div>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                     {ledgerEntries.length === 0 ? (
-                        <p className="text-center text-surface-500 py-8">{t('common.noData')}</p>
+                        <p className="text-center text-surface-500 py-8">No transactions found for this period</p>
                     ) : (
                         ledgerEntries.map((entry) => (
                             <div key={entry.id} className={`flex items-center justify-between p-3 rounded-xl border

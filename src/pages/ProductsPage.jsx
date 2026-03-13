@@ -11,8 +11,11 @@ import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash,
-    HiOutlineMagnifyingGlass, HiOutlineFunnel,
+    HiOutlineMagnifyingGlass, HiOutlineFunnel, HiOutlineQrCode
 } from 'react-icons/hi2';
+import ScannerModal from '../components/common/ScannerModal';
+import AIScanner from '../components/common/AIScanner';
+import { toast } from 'react-hot-toast';
 
 import Translate from '../components/common/Translate';
 
@@ -31,6 +34,10 @@ export default function ProductsPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editProduct, setEditProduct] = useState(null);
     const [saving, setSaving] = useState(false);
+
+    // Scanner integration
+    const [scannerOpen, setScannerOpen] = useState(false);
+    const [aiScannerOpen, setAiScannerOpen] = useState(false);
 
     const emptyForm = {
         name: '', sku: '', barcode: '', category: '', unit: 'pcs',
@@ -89,6 +96,33 @@ export default function ProductsPage() {
             initialStock: 0, minStockLevel: product.inventory?.[0]?.minStockLevel || 10,
         });
         setModalOpen(true);
+    };
+
+    const handleScannerAction = async (action, data) => {
+        if (action === 'OPEN_EDIT') {
+            openEdit(data);
+        } else if (action === 'OPEN_CREATE_PREFILLED') {
+            setEditProduct(null);
+            setForm({
+                ...emptyForm,
+                storeId: user?.storeId || stores[0]?.id || '',
+                ...data,
+                // Ensure inputs don't break with nulls or empty strings being overwrote poorly
+                minStockLevel: data.minStockLevel || 10
+            });
+            setModalOpen(true);
+        } else if (action === 'BULK_IMPORT') {
+            // Bulk import logic via backend
+            for (const item of data) {
+                if (item.matchFound) {
+                    await productAPI.update(item.existingProduct.id, { ...item.extracted });
+                } else {
+                    await productAPI.create({ ...item.extracted, storeId: user?.storeId || stores[0]?.id });
+                }
+            }
+            toast.success('Bulk import from document complete!');
+            fetchProducts();
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -177,10 +211,26 @@ export default function ProductsPage() {
                     <h1 className="text-2xl font-bold text-surface-900">{t('products.title')}</h1>
                     <p className="text-surface-500 text-sm">{pagination?.total || 0} {t('common.results')}</p>
                 </div>
-                <button onClick={openCreate} className="btn-primary" id="add-product-btn">
-                    <HiOutlinePlus className="w-5 h-5" />
-                    {t('products.addProduct')}
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setScannerOpen(true)}
+                        className="btn-secondary whitespace-nowrap hidden sm:flex items-center gap-2 border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                    >
+                        <HiOutlineQrCode className="w-5 h-5" />
+                        <span className="font-semibold">Smart Scan</span>
+                    </button>
+                    <button
+                        onClick={() => { openCreate(); setAiScannerOpen(true); }}
+                        className="btn-secondary whitespace-nowrap hidden sm:flex items-center gap-2 border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                    >
+                        <span className="text-lg">✨</span>
+                        <span className="font-semibold">AI Scan</span>
+                    </button>
+                    <button onClick={openCreate} className="btn-primary" id="add-product-btn">
+                        <HiOutlinePlus className="w-5 h-5" />
+                        {t('products.addProduct')}
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -320,11 +370,11 @@ export default function ProductsPage() {
                         <div>
                             <label className="input-label">{t('products.unit')}</label>
                             <select className="select-field" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
-                                <option value="pcs">Pieces</option>
-                                <option value="kg">Kilograms</option>
-                                <option value="ltr">Litres</option>
-                                <option value="box">Box</option>
-                                <option value="pack">Pack</option>
+                                <option value="pcs">{t('inventory.units.pcs')}</option>
+                                <option value="kg">{t('inventory.units.kg')}</option>
+                                <option value="ltr">{t('inventory.units.ltr')}</option>
+                                <option value="box">{t('inventory.units.box')}</option>
+                                <option value="pack">{t('inventory.units.pack')}</option>
                             </select>
                         </div>
                         {isAdmin && stores.length > 0 && (
@@ -357,6 +407,36 @@ export default function ProductsPage() {
                     </div>
                 </form>
             </Modal>
+
+            {/* AI Scanner Modal */}
+            <AIScanner
+                isOpen={aiScannerOpen}
+                onClose={() => setAiScannerOpen(false)}
+                onApply={(fields) => {
+                    // Map extracted fields into the product form
+                    setForm(prev => ({
+                        ...prev,
+                        ...(fields.name && { name: fields.name }),
+                        ...(fields.sellingPrice && { sellingPrice: fields.sellingPrice }),
+                        ...(fields.costPrice && { costPrice: fields.costPrice }),
+                        ...(fields.barcode && { barcode: fields.barcode }),
+                        ...(fields.unit && { unit: fields.unit }),
+                        ...(fields.hsn && { hsnCode: fields.hsn }),
+                        ...(fields.category && { category: fields.category }),
+                    }));
+                    setModalOpen(true); // Ensure product modal is open
+                    toast.success(`AI applied ${Object.keys(fields).length} field(s) to the form`);
+                }}
+                context="product"
+            />
+
+            {/* Barcode / Smart Scanner */}
+            <ScannerModal
+                isOpen={scannerOpen}
+                onClose={() => setScannerOpen(false)}
+                onAction={handleScannerAction}
+                stores={stores}
+            />
         </div >
     );
 }

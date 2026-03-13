@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { dashboardAPI, customerAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlineDocumentChartBar, HiOutlineBanknotes, HiOutlineFunnel } from 'react-icons/hi2';
+import { HiOutlineDocumentChartBar, HiOutlineBanknotes, HiOutlineArrowDownTray } from 'react-icons/hi2';
 import { resolveDateRange } from '../utils/dateUtils';
 
 export default function ReportsPage() {
@@ -20,7 +20,7 @@ export default function ReportsPage() {
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v || 0);
+    const fmt = (v) => new Intl.NumberFormat(t('common.locale') || 'en-IN', { style: 'currency', currency: 'INR' }).format(v || 0);
 
     useEffect(() => {
         // FIX: resolveDateRange now returns null for 'custom' instead of
@@ -73,6 +73,43 @@ export default function ReportsPage() {
         }
     };
 
+    const handleExport = () => {
+        let csv = '';
+        const filename = `VyapariSetu_${reportType}_${startDate}_to_${endDate}.csv`;
+
+        if (reportType === 'profit-loss' && data) {
+            csv = `${t('common.metric') || 'Metric'},${t('common.amount')}\n`;
+            csv += `${t('reports.metrics.totalSales')},${data.totalSales || 0}\n`;
+            csv += `${t('reports.metrics.totalPurchases')},${data.totalPurchases || 0}\n`;
+            csv += `${t('reports.metrics.grossProfit')},${data.grossProfit || 0}\n`;
+            csv += `${t('reports.metrics.totalExpenses')},${data.totalExpenses || 0}\n`;
+            csv += `${t('reports.metrics.netProfit')},${data.netProfit ?? data.grossProfit ?? 0}\n`;
+            csv += `${t('reports.metrics.totalDiscount')},${data.totalDiscount || 0}\n`;
+        } else if (reportType === 'payments' && payments.length > 0) {
+            csv = `${t('reports.headers.date')},${t('reports.headers.customer')},${t('reports.headers.method')},${t('reports.headers.amount')},${t('reports.headers.description')}\n`;
+            payments.forEach(p => {
+                const dateString = new Date(p.createdAt).toLocaleString(t('common.locale') || 'en-IN').replace(/,/g, '');
+                const customerName = (p.customer?.name || '').replace(/,/g, ' ');
+                const method = p.paymentMethod || '';
+                const amount = p.amount || 0;
+                const desc = (p.description || '').replace(/,/g, ' ');
+                csv += `${dateString},${customerName},${method},${amount},${desc}\n`;
+            });
+        }
+
+        if (!csv) return;
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <h1 className="text-2xl font-bold text-surface-100">{t('reports.title')}</h1>
@@ -120,10 +157,23 @@ export default function ReportsPage() {
                         </>
                     )}
                     <div className={dateRange === 'custom' ? 'sm:col-span-2' : 'sm:col-span-6'}>
-                        <button onClick={generate} className="btn-primary w-full" disabled={loading}>
-                            <HiOutlineDocumentChartBar className="w-5 h-5" />
-                            {loading ? t('common.loading') : t('reports.generate')}
-                        </button>
+                        <div className="flex gap-2">
+                            <button onClick={generate} className="btn-primary flex-1" disabled={loading}>
+                                <HiOutlineDocumentChartBar className="w-5 h-5" />
+                                {loading ? t('common.loading') : t('reports.generate')}
+                            </button>
+                            {/* NEW: Reports Export Button */}
+                            <button
+                                onClick={handleExport}
+                                disabled={loading || (reportType === 'profit-loss' ? !data : payments.length === 0)}
+                                className="px-4 py-2 rounded-xl border border-gray-600 font-semibold text-sm
+                                           text-surface-300 hover:bg-surface-800 transition-colors disabled:opacity-40 flex items-center gap-2"
+                                title={t('common.export')}
+                            >
+                                <HiOutlineArrowDownTray className="w-5 h-5" />
+                                {t('common.export')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

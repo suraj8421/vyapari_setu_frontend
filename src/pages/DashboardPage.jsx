@@ -61,7 +61,7 @@ export default function DashboardPage() {
     };
 
     const formatCurrency = (val) => {
-        return new Intl.NumberFormat('en-IN', {
+        return new Intl.NumberFormat(t('common.locale') || 'en-IN', {
             style: 'currency',
             currency: 'INR',
             maximumFractionDigits: 0,
@@ -84,7 +84,7 @@ export default function DashboardPage() {
         {
             label: t('dashboard.todayPayments'),
             value: formatCurrency(overview?.todayPayments?.amount),
-            sub: `${overview?.todayPayments?.count || 0} payments collected`,
+            sub: `${overview?.todayPayments?.count || 0} ${t('dashboard.paymentsCollected')}`,
             icon: HiOutlineCurrencyRupee,
             color: 'stat-card-emerald',
             iconColor: 'text-emerald-500',
@@ -92,9 +92,9 @@ export default function DashboardPage() {
             path: '/reports/payments?range=today'
         },
         {
-            label: "Credit Given Today",
+            label: t('dashboard.creditGivenToday'),
             value: formatCurrency(overview?.todaySales?.amount - overview?.todayPayments?.amount),
-            sub: `Outstanding from today`,
+            sub: t('dashboard.outstandingFromToday'),
             icon: HiOutlineArrowTrendingUp,
             color: 'stat-card-rose',
             iconColor: 'text-red-500',
@@ -114,7 +114,7 @@ export default function DashboardPage() {
         {
             label: t('dashboard.lowStockItems'),
             value: overview?.lowStockCount || 0,
-            sub: "Items needing reorder",
+            sub: t('dashboard.itemsNeedingReorder'),
             icon: HiOutlineCube,
             color: 'stat-card-amber',
             iconColor: 'text-amber-500',
@@ -139,7 +139,7 @@ export default function DashboardPage() {
             <div>
                 <h1 className="text-2xl font-bold text-surface-900">{t('dashboard.title')}</h1>
                 <p className="text-surface-500 text-sm mt-1">
-                    {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    {new Date().toLocaleDateString(t('common.locale') || 'en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
             </div>
 
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                                         </span>
                                         <div>
                                             <p className="text-sm font-medium text-surface-900 truncate max-w-[140px]">{product.name}</p>
-                                            <p className="text-xs text-surface-500">{product.totalQuantity} sold</p>
+                                            <p className="text-xs text-surface-500">{product.totalQuantity} {t('common.sold') || 'sold'}</p>
                                         </div>
                                     </div>
                                     <span className="text-sm font-semibold text-emerald-600">
@@ -272,7 +272,7 @@ export default function DashboardPage() {
                                 </div>
                             ))
                         ) : (
-                            <p className="text-surface-500 text-sm text-center py-8">✅ All items well stocked!</p>
+                            <p className="text-surface-500 text-sm text-center py-8">✅ {t('dashboard.allStocked')}</p>
                         )}
                     </div>
                 </div>

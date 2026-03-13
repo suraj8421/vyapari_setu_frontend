@@ -101,6 +101,7 @@ export const productAPI = {
     delete: (id) => api.delete(`/products/${id}`),
     getCategories: () => api.get('/products/categories'),
     getLowStock: () => api.get('/products/low-stock'),
+    getMovementHistory: (id) => api.get(`/products/${id}/movement`),
 };
 
 // Sales
@@ -164,11 +165,26 @@ export const transactionAPI = {
     getPending: () => api.get('/transactions/pending'),
 };
 
-// FIX: New expense API — expenses had no listing/management endpoints previously
+// NEW: Full expense API — previously only getAll, getById, getCategories existed.
+// Added create/update/delete to match the backend controller which had these methods.
 export const expenseAPI = {
     getAll: (params) => api.get('/expenses', { params }),
     getById: (id) => api.get(`/expenses/${id}`),
     getCategories: () => api.get('/expenses/categories'),
+    create: (data) => api.post('/expenses', data),
+    update: (id, data) => api.put(`/expenses/${id}`, data),
+    delete: (id) => api.delete(`/expenses/${id}`),
+};
+
+// Scanner API
+export const scannerAPI = {
+    scanBarcode: (barcode) => api.post('/scanner/barcode', { barcode }),
+    processImage: (formData) => api.post('/scanner/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    processDocument: (formData) => api.post('/scanner/document', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
 };
 
 export default api;

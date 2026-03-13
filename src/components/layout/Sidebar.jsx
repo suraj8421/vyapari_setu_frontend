@@ -2,6 +2,7 @@
 // Sidebar Component
 // ============================================
 
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -17,26 +18,69 @@ import {
     HiOutlineCurrencyRupee,
     HiOutlineClipboardDocumentList,
     HiOutlineUserGroup,
+    // NEW: Approvals page icon
+    HiOutlineClipboardDocumentCheck,
+    // NEW: Expenses page icon
+    HiOutlineReceiptRefund,
+    // NEW: Inventory page icon
+    HiOutlineCubeTransparent,
 } from 'react-icons/hi2';
+import { transactionAPI } from '../../services/api';
 
 export default function Sidebar({ isOpen, onClose }) {
     const { t } = useTranslation();
     const { user, isAdmin, logout } = useAuth();
 
+    // NEW: Live badge — polls /api/transactions/pending to show how many
+    // staff edits are waiting. Only fetches if the user is an admin.
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+
+        const fetchPendingCount = async () => {
+            try {
+                const res = await transactionAPI.getPending();
+                setPendingCount((res.data.data || []).length);
+            } catch (_) {
+                // Silently fail — badge is non-critical
+            }
+        };
+
+        // Fetch immediately on mount
+        fetchPendingCount();
+
+        // Re-check every 60 seconds so the badge stays current
+        const interval = setInterval(fetchPendingCount, 60_000);
+        return () => clearInterval(interval);
+    }, [isAdmin]);
+
     const navItems = [
-        { to: '/entry', icon: HiOutlineClipboardDocumentList, label: 'New Entry (Unified)' },
+        { to: '/entry', icon: HiOutlineClipboardDocumentList, label: t('nav.unifiedEntry') },
         { to: '/dashboard', icon: HiOutlineChartBarSquare, label: t('nav.dashboard') },
         { to: '/products', icon: HiOutlineCube, label: t('nav.products') },
+        // NEW: Inventory page — schema existed, no frontend page at all; grouped with Products
+        { to: '/inventory', icon: HiOutlineCubeTransparent, label: t('nav.inventory') },
         { to: '/sales', icon: HiOutlineShoppingCart, label: t('nav.sales') },
         { to: '/purchases', icon: HiOutlineTruck, label: t('nav.purchases'), adminOnly: true },
         { to: '/customers', icon: HiOutlineCurrencyRupee, label: t('nav.khata') },
+        // NEW: Expenses page — all users can view; was missing from nav entirely
+        { to: '/expenses', icon: HiOutlineReceiptRefund, label: t('nav.expenses') },
         { to: '/suppliers', icon: HiOutlineClipboardDocumentList, label: t('nav.suppliers'), adminOnly: true },
         { to: '/stores', icon: HiOutlineBuildingStorefront, label: t('nav.stores'), adminOnly: true },
         { to: '/users', icon: HiOutlineUserGroup, label: t('nav.users'), adminOnly: true },
         { to: '/reports', icon: HiOutlineDocumentChartBar, label: t('nav.reports'), adminOnly: true },
+        // NEW: Approvals link — only for admins, shows live pending count badge
+        {
+            to: '/approvals',
+            icon: HiOutlineClipboardDocumentCheck,
+            label: t('nav.approvals'),
+            adminOnly: true,
+            badge: pendingCount > 0 ? pendingCount : null,
+        },
     ];
 
-    const filteredItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+    const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
     return (
         <>
@@ -78,7 +122,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                 {user?.firstName} {user?.lastName}
                             </p>
                             <p className="text-xs text-surface-500">
-                                {isAdmin ? t('users.admin') : t('users.storeUser')}
+                                {isAdmin ? t('users.admin') : t('users.staff')}
                             </p>
                         </div>
                     </div>
@@ -86,7 +130,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
                 {/* Navigation */}
                 <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
-                    {filteredItems.map((item) => (
+                    {filteredItems.map(item => (
                         <NavLink
                             key={item.to}
                             to={item.to}
@@ -96,7 +140,18 @@ export default function Sidebar({ isOpen, onClose }) {
                             }
                         >
                             <item.icon className="w-5 h-5 flex-shrink-0" />
-                            <span>{item.label}</span>
+                            <span className="flex-1">{item.label}</span>
+
+                            {/* NEW: Live pending count badge.
+                                Only rendered for items that have a badge value (Approvals).
+                                The badge pulses to draw attention when count > 0. */}
+                            {item.badge != null && (
+                                <span className="ml-auto flex items-center justify-center
+                                                 w-5 h-5 rounded-full bg-amber-500 text-white
+                                                 text-[10px] font-black animate-pulse">
+                                    {item.badge > 9 ? '9+' : item.badge}
+                                </span>
+                            )}
                         </NavLink>
                     ))}
                 </nav>

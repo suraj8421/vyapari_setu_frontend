@@ -1,11 +1,12 @@
 // ============================================
-// Header Component with Language Switcher
+// Header Component with Language Switcher + Notifications + Offline
 // ============================================
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { HiOutlineBars3, HiOutlineBell, HiOutlineGlobeAlt } from 'react-icons/hi2';
+import { HiOutlineBars3, HiOutlineGlobeAlt } from 'react-icons/hi2';
 import { useState, useRef, useEffect } from 'react';
+import NotificationCenter from '../common/NotificationCenter';
 
 export default function Header({ onMenuToggle }) {
     const { t, i18n } = useTranslation();
@@ -90,15 +91,8 @@ export default function Header({ onMenuToggle }) {
                         )}
                     </div>
 
-                    {/* Notifications */}
-                    <button
-                        className="relative p-2 rounded-xl text-surface-500 hover:text-surface-900 
-                       hover:bg-gray-100 transition-colors"
-                        id="notifications-btn"
-                    >
-                        <HiOutlineBell className="w-5 h-5" />
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-                    </button>
+                    {/* Notification Center */}
+                    <NotificationCenter />
                 </div>
             </div>
         </header>
