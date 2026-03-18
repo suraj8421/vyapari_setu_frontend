@@ -27,6 +27,7 @@ import {
 } from 'react-icons/hi2';
 import { toast } from 'react-hot-toast';
 import { expenseAPI } from '../services/api';
+import { getOrFetch } from '../utils/dataCache';
 import { resolveDateRange } from '../utils/dateUtils';
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -294,10 +295,9 @@ export default function ExpensesPage() {
     }, [dateRange]);
 
     // Fetch categories for the filter dropdown
-    // NEW: category list was completely unavailable before the expense API was added
     useEffect(() => {
-        expenseAPI.getCategories()
-            .then(res => setCategories(res.data.data || []))
+        getOrFetch('expense_categories', () => expenseAPI.getCategories().then(res => res.data.data || []))
+            .then(data => setCategories(data))
             .catch(() => { /* non-critical */ });
     }, []);
 
@@ -314,11 +314,13 @@ export default function ExpensesPage() {
             };
             if (category) params.category = category;
 
-            // NEW: Uses GET /api/expenses — this route didn't exist before we added it
-            const res = await expenseAPI.getAll(params);
-            setExpenses(res.data.data || []);
-            setTotalAmount(res.data.totalAmount || 0);
-            setPagination(prev => ({ ...prev, total: res.data.pagination?.total || 0 }));
+            // PERF: Deduplicate list fetch
+            const key = `expenses_list_${JSON.stringify(params)}`;
+            const res = await getOrFetch(key, () => expenseAPI.getAll(params).then(r => r.data), 10000);
+
+            setExpenses(res.data || []);
+            setTotalAmount(res.totalAmount || 0);
+            setPagination(prev => ({ ...prev, total: res.pagination?.total || 0 }));
         } catch (err) {
             toast.error('Could not load expenses.');
             console.error('[ExpensesPage] fetchExpenses error:', err);

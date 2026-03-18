@@ -65,6 +65,7 @@ const hi = {
             searchPlaceholder: 'नाम या SKU द्वारा खोजें...',
             export: 'निर्यात (Export)',
             sold: 'बिका',
+            allTime: 'सभी समय',
         },
 
         // ─── Auth ───────────────────────────────
@@ -151,6 +152,8 @@ const hi = {
             expenses: 'खर्च',
             approvals: 'मंजूरी',
             unifiedEntry: 'त्वरित प्रविष्टि',
+            b2bNetwork: 'बी2बी नेटवर्क',
+            b2bInvoices: 'बी2बी इनवॉइस',
         },
 
         // ─── Products ───────────────────────────
@@ -242,6 +245,8 @@ const hi = {
             confirm: 'वापसी की पुष्टि करें',
             returnWarning: 'यह कार्रवाई पूर्ववत नहीं की जा सकती। बिक्री की स्थिति स्थायी रूप से बदल दी जाएगी।',
             soldBy: 'बिक्रेता',
+            allPayments: 'सभी भुगतान विधियां',
+            return: 'वापसी (Return)',
         },
 
         // ─── Purchases ──────────────────────────
@@ -259,8 +264,11 @@ const hi = {
         suppliers: {
             title: 'आपूर्तिकर्ता',
             addSupplier: 'आपूर्तिकर्ता जोड़ें',
+            editSupplier: 'आपूर्तिकर्ता संपादित करें',
+            supplierName: 'आपूर्तिकर्ता का नाम',
             companyName: 'कंपनी का नाम',
             contactPerson: 'संपर्क व्यक्ति',
+            gstNumber: 'GST नंबर',
             gstin: 'GSTIN',
             outstandingBalance: 'बकाया शेष',
         },
@@ -273,6 +281,19 @@ const hi = {
             creditLimit: 'क्रेडिट सीमा',
             currentBalance: 'वर्तमान शेष',
             viewLedger: 'लेज़र देखें',
+            // Khata / Ledger modal keys
+            balance: 'बकाया राशि',
+            khataTtle: 'खाता — {{name}}',
+            viewKhata: 'खाता देखें',
+            recordPayment: 'भुगतान दर्ज करें',
+            creditEntry: 'उधार (बिक्री)',
+            debitEntry: 'भुगतान प्राप्त',
+            balanceAfter: 'शेष राशि',
+            exportPdf: 'PDF निर्यात करें',
+            filterDue: 'बकाया है',
+            noLedger: 'अभी तक कोई लेज़र प्रविष्टि नहीं।',
+            paymentSuccess: 'भुगतान सफलतापूर्वक दर्ज किया गया',
+            exportSuccess: 'लेज़र PDF के रूप में निर्यात किया गया',
         },
 
         // ─── Users ──────────────────────────────
@@ -298,6 +319,8 @@ const hi = {
             startDate: 'आरंभ तिथि',
             endDate: 'अंतिम तिथि',
             generate: 'रिपोर्ट तैयार करें',
+            profitLoss: 'लाभ और हानि',
+            noPayments: 'इस अवधि के लिए कोई भुगतान नहीं मिला',
             totalSales: 'कुल बिक्री',
             totalPurchases: 'कुल खरीद',
             grossProfit: 'सकल लाभ',
@@ -311,7 +334,7 @@ const hi = {
                 totalPurchases: 'कुल खरीद',
                 grossProfit: 'सकल लाभ',
                 totalExpenses: 'कुल खर्च',
-                netProfit: 'शुद्ध लाभ',
+                netProfit: 'शुद्ध लाभ (खर्चों के बाद)',
                 totalDiscount: 'कुल छूट',
             },
             headers: {

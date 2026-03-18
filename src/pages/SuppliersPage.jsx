@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supplierAPI, storeAPI } from '../services/api';
+import { getOrFetch } from '../utils/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
@@ -22,14 +23,27 @@ export default function SuppliersPage() {
     const emptyForm = { name: '', phone: '', email: '', gstNumber: '', address: '', storeId: user?.storeId || '' };
     const [form, setForm] = useState(emptyForm);
 
-    useEffect(() => { fetchData(); if (isAdmin) fetchStores(); }, [page, search]);
+    useEffect(() => { fetchData(); }, [page, search]);
+    useEffect(() => { if (isAdmin) fetchStores(); }, [isAdmin]);
 
     const fetchData = async () => {
         setLoading(true);
-        try { const { data } = await supplierAPI.getAll({ page, limit: 15, search }); setSuppliers(data.data || []); setPagination(data.pagination); }
-        catch (err) { console.error(err); } finally { setLoading(false); }
+        try {
+            const params = { page, limit: 15, search };
+            // PERF: Deduplicate list fetch
+            const key = `suppliers_list_${JSON.stringify(params)}`;
+            const data = await getOrFetch(key, () => supplierAPI.getAll(params).then(r => r.data), 10000);
+
+            setSuppliers(data.data || []);
+            setPagination(data.pagination);
+        } catch (err) { console.error(err); } finally { setLoading(false); }
     };
-    const fetchStores = async () => { try { const { data } = await storeAPI.getAll({ limit: 100 }); setStores(data.data || []); } catch (_) { } };
+    const fetchStores = async () => {
+        try {
+            const data = await getOrFetch('stores', () => storeAPI.getAll({ limit: 100 }).then(r => r.data.data || []));
+            setStores(data || []);
+        } catch (_) { }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault(); setSaving(true);
@@ -37,15 +51,15 @@ export default function SuppliersPage() {
             if (editItem) await supplierAPI.update(editItem.id, form);
             else await supplierAPI.create(form);
             setModalOpen(false); fetchData();
-        } catch (err) { alert(err.response?.data?.message || 'Error'); } finally { setSaving(false); }
+        } catch (err) { alert(err.response?.data?.message || t('common.error')); } finally { setSaving(false); }
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('Delete?')) return;
-        try { await supplierAPI.delete(id); fetchData(); } catch (err) { alert(err.response?.data?.message || 'Error'); }
+        if (!confirm(t('common.confirmDelete'))) return;
+        try { await supplierAPI.delete(id); fetchData(); } catch (err) { alert(err.response?.data?.message || t('common.error')); }
     };
 
-    const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v || 0);
+    const fmt = (v) => new Intl.NumberFormat(t('common.locale') || 'en-IN', { style: 'currency', currency: 'INR' }).format(v || 0);
 
     return (
         <div className="space-y-6 animate-fade-in">

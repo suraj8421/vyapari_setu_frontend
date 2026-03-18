@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { purchaseAPI, productAPI, supplierAPI } from '../services/api';
+import { getOrFetch } from '../utils/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
@@ -26,7 +27,11 @@ export default function PurchasesPage() {
     const fetchPurchases = async () => {
         setLoading(true);
         try {
-            const { data } = await purchaseAPI.getAll({ page, limit: 15 });
+            const params = { page, limit: 15 };
+            // PERF: Deduplicate list fetch
+            const key = `purchases_list_${JSON.stringify(params)}`;
+            const data = await getOrFetch(key, () => purchaseAPI.getAll(params).then(r => r.data), 10000);
+
             setPurchases(data.data || []);
             setPagination(data.pagination);
         } catch (err) { console.error(err); }
@@ -34,11 +39,17 @@ export default function PurchasesPage() {
     };
 
     const openNew = async () => {
-        const [p, s] = await Promise.all([productAPI.getAll({ limit: 200 }), supplierAPI.getAll({ limit: 100 })]);
-        setProducts(p.data.data || []); setSuppliers(s.data.data || []);
-        setItems([{ productId: '', quantity: 1, unitPrice: 0, gstRate: 0 }]);
-        setForm({ storeId: user?.storeId || '', supplierId: '', invoiceNumber: '', notes: '' });
-        setModalOpen(true);
+        try {
+            const [p, s] = await Promise.all([
+                getOrFetch('products', () => productAPI.getAll({ limit: 200 }).then(r => r.data.data || [])),
+                getOrFetch('suppliers', () => supplierAPI.getAll({ limit: 100 }).then(r => r.data.data || [])),
+            ]);
+            setProducts(p || []);
+            setSuppliers(s || []);
+            setItems([{ productId: '', quantity: 1, unitPrice: 0, gstRate: 0 }]);
+            setForm({ storeId: user?.storeId || '', supplierId: '', invoiceNumber: '', notes: '' });
+            setModalOpen(true);
+        } catch (err) { console.error(err); }
     };
 
     const updateItem = (idx, field, value) => {

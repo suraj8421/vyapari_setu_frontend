@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { storeAPI } from '../services/api';
+import { getOrFetch } from '../utils/dataCache';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -22,8 +23,15 @@ export default function StoresPage() {
 
     const fetchData = async () => {
         setLoading(true);
-        try { const { data } = await storeAPI.getAll({ page, limit: 15 }); setStores(data.data || []); setPagination(data.pagination); }
-        catch (err) { console.error(err); } finally { setLoading(false); }
+        try {
+            const params = { page, limit: 15 };
+            // PERF: Deduplicate list fetch
+            const key = `stores_list_${JSON.stringify(params)}`;
+            const data = await getOrFetch(key, () => storeAPI.getAll(params).then(r => r.data), 10000);
+
+            setStores(data.data || []);
+            setPagination(data.pagination);
+        } catch (err) { console.error(err); } finally { setLoading(false); }
     };
 
     const handleSubmit = async (e) => {

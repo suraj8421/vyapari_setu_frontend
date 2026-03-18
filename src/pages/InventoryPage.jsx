@@ -37,6 +37,7 @@ import {
 import Modal from '../components/common/Modal';
 import ScannerModal from '../components/common/ScannerModal';
 import { productAPI } from '../services/api';
+import { getOrFetch, invalidate } from '../utils/dataCache';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 const fmt = (val, locale = 'en-IN') =>
@@ -101,9 +102,10 @@ function MinStockEditor({ productId, current, onSave }) {
     const save = async () => {
         setSaving(true);
         try {
-            // PUT /api/products/:id — updates minStockLevel field
             await productAPI.update(productId, { minStockLevel: Number(value) });
             onSave(productId, Number(value));
+            // Invalidate products cache so next load reflects new threshold
+            invalidate('products');
             toast.success('Min stock level updated');
             setEditing(false);
         } catch (err) {
@@ -328,9 +330,9 @@ export default function InventoryPage() {
     const [lowStockItems, setLowStockItems] = useState([]);
     const [outOfStockItems, setOutOfStockItems] = useState([]);
 
-    // ── Fetch All Products (with inventory data) ───────────────────
-    // GET /api/products returns each product with inventory[] array containing
-    // quantity, minStockLevel, maxStockLevel per store location.
+    // ── Fetch Products (paged) + Categories (cached) ───────────────
+    // Products are paged + filtered — they MUST be fetched fresh on filter change.
+    // Categories are static-ish — cached for 5 min to avoid redundant calls.
     const fetchInventory = useCallback(async () => {
         setLoading(true);
         try {
@@ -340,18 +342,20 @@ export default function InventoryPage() {
                 search: search || undefined,
                 category: category || undefined,
             };
-            const [prodRes, catRes] = await Promise.all([
-                productAPI.getAll(params),
-                productAPI.getCategories(),
+            // Fetch paged products fresh (filters change) + categories from cache
+            // PERF: Deduplicate inventory list fetch (shares key space if params match)
+            const key = `inventory_list_${JSON.stringify(params)}`;
+            const [data, cachedCategories] = await Promise.all([
+                getOrFetch(key, () => productAPI.getAll(params).then(r => r.data), 10000),
+                getOrFetch('categories', () => productAPI.getCategories().then(r => r.data.data || [])),
             ]);
 
-            const prods = prodRes.data.data || [];
+            const prods = data.data || [];
             setProducts(prods);
-            setTotalCount(prodRes.data.pagination?.total || 0);
-            setCategories(catRes.data.data || []);
+            setTotalCount(data.pagination?.total || 0);
+            setCategories(cachedCategories);
 
-            // Derive low-stock and out-of-stock for alerts and stats
-            // (computed from all returned items, not just current page)
+            // Derive low-stock and out-of-stock for stats
             setLowStockItems(prods.filter(p => {
                 const qty = p.inventory?.reduce((s, i) => s + i.quantity, 0) || 0;
                 const min = p.inventory?.[0]?.minStockLevel || 10;

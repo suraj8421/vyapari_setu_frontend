@@ -183,11 +183,11 @@ export default function ReportsPage() {
                     <div className="stat-card stat-card-amber"><p className="text-sm text-surface-400">{t('reports.totalPurchases')}</p><p className="text-2xl font-bold text-amber-400">{fmt(data.totalPurchases)}</p></div>
                     <div className="stat-card stat-card-indigo"><p className="text-sm text-surface-400">{t('reports.grossProfit')}</p><p className={`text-2xl font-bold ${data.grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(data.grossProfit)}</p></div>
                     {/* FIX: Now showing netProfit (after expenses) in addition to grossProfit */}
-                    <div className="stat-card stat-card-violet"><p className="text-sm text-surface-400">Net Profit (After Expenses)</p><p className={`text-2xl font-bold ${(data.netProfit ?? data.grossProfit) >= 0 ? 'text-violet-400' : 'text-red-400'}`}>{fmt(data.netProfit ?? data.grossProfit)}</p></div>
+                    <div className="stat-card stat-card-violet"><p className="text-sm text-surface-400">{t('reports.metrics.netProfit')}</p><p className={`text-2xl font-bold ${(data.netProfit ?? data.grossProfit) >= 0 ? 'text-violet-400' : 'text-red-400'}`}>{fmt(data.netProfit ?? data.grossProfit)}</p></div>
                     <div className="stat-card stat-card-violet"><p className="text-sm text-surface-400">{t('reports.totalDiscount')}</p><p className="text-2xl font-bold text-blue-400">{fmt(data.totalDiscount)}</p></div>
                     {/* FIX: Show total expenses (was missing before) */}
                     {data.totalExpenses !== undefined && (
-                        <div className="stat-card stat-card-amber"><p className="text-sm text-surface-400">Total Expenses</p><p className="text-2xl font-bold text-orange-400">{fmt(data.totalExpenses)}</p></div>
+                        <div className="stat-card stat-card-amber"><p className="text-sm text-surface-400">{t('reports.metrics.totalExpenses')}</p><p className="text-2xl font-bold text-orange-400">{fmt(data.totalExpenses)}</p></div>
                     )}
                 </div>
             )}
@@ -197,7 +197,7 @@ export default function ReportsPage() {
                     <div className="p-4 border-b border-surface-700 bg-surface-800/50 flex items-center justify-between">
                         <h3 className="font-semibold text-surface-100 flex items-center gap-2">
                             <HiOutlineBanknotes className="w-5 h-5 text-emerald-400" />
-                            Payments Received
+                            {t('reports.paymentsReceived')}
                         </h3>
                         <span className="badge-info">
                             Total: {fmt(payments.reduce((sum, p) => sum + Number(p.amount), 0))}
@@ -207,11 +207,11 @@ export default function ReportsPage() {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Customer</th>
-                                    <th>Method</th>
-                                    <th>Amount</th>
-                                    <th>Description</th>
+                                    <th>{t('reports.headers.date')}</th>
+                                    <th>{t('reports.headers.customer')}</th>
+                                    <th>{t('reports.headers.method')}</th>
+                                    <th>{t('reports.headers.amount')}</th>
+                                    <th>{t('reports.headers.description')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -232,7 +232,7 @@ export default function ReportsPage() {
 
             {loading && <LoadingSpinner />}
             {!loading && reportType === 'payments' && payments.length === 0 && (
-                <div className="text-center py-20 text-surface-500">No payments found for this period</div>
+                <div className="text-center py-20 text-surface-500">{t('reports.noPayments')}</div>
             )}
         </div>
     );

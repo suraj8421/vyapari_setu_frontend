@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { userAPI, storeAPI } from '../services/api';
+import { getOrFetch } from '../utils/dataCache';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -19,14 +20,27 @@ export default function UsersPage() {
     const emptyForm = { firstName: '', lastName: '', email: '', password: '', role: 'STORE_USER', storeId: '' };
     const [form, setForm] = useState(emptyForm);
 
-    useEffect(() => { fetchData(); fetchStores(); }, [page]);
+    useEffect(() => { fetchData(); }, [page]);
+    useEffect(() => { fetchStores(); }, []);
 
     const fetchData = async () => {
         setLoading(true);
-        try { const { data } = await userAPI.getAll({ page, limit: 15 }); setUsers(data.data || []); setPagination(data.pagination); }
-        catch (err) { console.error(err); } finally { setLoading(false); }
+        try {
+            const params = { page, limit: 15 };
+            // PERF: Deduplicate list fetch
+            const key = `users_list_${JSON.stringify(params)}`;
+            const data = await getOrFetch(key, () => userAPI.getAll(params).then(r => r.data), 10000);
+
+            setUsers(data.data || []);
+            setPagination(data.pagination);
+        } catch (err) { console.error(err); } finally { setLoading(false); }
     };
-    const fetchStores = async () => { try { const { data } = await storeAPI.getAll({ limit: 100 }); setStores(data.data || []); } catch (_) { } };
+    const fetchStores = async () => {
+        try {
+            const data = await getOrFetch('stores', () => storeAPI.getAll({ limit: 100 }).then(r => r.data.data || []));
+            setStores(data || []);
+        } catch (_) { }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault(); setSaving(true);

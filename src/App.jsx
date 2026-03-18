@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { OfflineProvider } from './context/OfflineContext';
 import Layout from './components/layout/Layout';
@@ -18,6 +19,8 @@ import UnifiedEntryPage from './pages/UnifiedEntryPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ExpensesPage from './pages/ExpensesPage';
 import InventoryPage from './pages/InventoryPage';
+import CustomerPortalPage from './pages/CustomerPortalPage';
+import NetworkPage from './pages/B2B/NetworkPage';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -25,17 +28,22 @@ export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <OfflineProvider>
-                    <NotificationProvider>
+                <SocketProvider>
+                    <OfflineProvider>
+                        <NotificationProvider>
                         <Toaster position="top-right" />
                         <Routes>
                             <Route path="/login" element={<LoginPage />} />
+                            {/* Customer Portal — public, separate from business dashboard */}
+                            <Route path="/customer-portal" element={<CustomerPortalPage />} />
                             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                                 <Route index element={<Navigate to="/dashboard" replace />} />
                                 <Route path="dashboard" element={<DashboardPage />} />
                                 <Route path="products" element={<ProductsPage />} />
                                 <Route path="sales" element={<SalesPage />} />
                                 <Route path="purchases" element={<ProtectedRoute adminOnly><PurchasesPage /></ProtectedRoute>} />
+                                <Route path="b2b/network" element={<NetworkPage />} />
+                                <Route path="b2b/invoices" element={<Navigate to="/approvals" replace />} />
                                 <Route path="customers" element={<CustomersPage />} />
                                 <Route path="suppliers" element={<ProtectedRoute adminOnly><SuppliersPage /></ProtectedRoute>} />
                                 <Route path="stores" element={<ProtectedRoute adminOnly><StoresPage /></ProtectedRoute>} />
@@ -50,6 +58,7 @@ export default function App() {
                         </Routes>
                     </NotificationProvider>
                 </OfflineProvider>
+                </SocketProvider>
             </AuthProvider>
         </BrowserRouter>
     );

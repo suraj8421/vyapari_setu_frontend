@@ -4,7 +4,7 @@
 // Intercepts failed API calls when offline, stores them in IndexedDB,
 // and replays them automatically when connectivity is restored.
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { openDB } from 'idb';
 
 const OfflineContext = createContext(null);
@@ -161,16 +161,18 @@ export function OfflineProvider({ children }) {
         refreshPendingCount();
     }, [refreshPendingCount]);
 
+    const value = useMemo(() => ({
+        isOnline,
+        pendingCount,
+        syncing,
+        enqueue,
+        syncQueue,
+        getQueue,
+        clearFailed,
+    }), [isOnline, pendingCount, syncing, enqueue, syncQueue, getQueue, clearFailed]);
+
     return (
-        <OfflineContext.Provider value={{
-            isOnline,
-            pendingCount,
-            syncing,
-            enqueue,
-            syncQueue,
-            getQueue,
-            clearFailed,
-        }}>
+        <OfflineContext.Provider value={value}>
             {children}
         </OfflineContext.Provider>
     );

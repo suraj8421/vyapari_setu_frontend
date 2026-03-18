@@ -12,17 +12,24 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { getOrFetch } from '../utils/dataCache';
+import { useAuth } from '../context/AuthContext';
 
 // Default blank item added when user clicks "+ Add Item"
 const BLANK_ITEM = {
     productId: '',
     quantity: 1,
     unitPrice: 0,
-    unit: 'pcs',
+    unit: 'PCS',
+    boxes: 0,
     discount: 0,
-    gstRate: 0,
+    gstRate: 18,
     total: 0,
-    productName: '', // Stored for PDF generation (avoids UUID in invoice)
+    productName: '',
+    qtyMode: 'equal',
+    bags: 0,
+    weightPerBag: 0,
+    qtyList: [],
 };
 
 // Initial form state — centralised here so it's easy to reset
@@ -33,7 +40,9 @@ const INITIAL_FORM = {
     deliveryDate: '',
     category: '',
     subCategory: '',
-    paymentMethod: 'CASH',
+    invoiceType: 'GST',
+    paymentMethod: 'CASH', // Default for single pay
+    payments: [{ method: 'CASH', amount: 0 }], // For split payments
     paidAmount: 0,
     notes: '',
     items: [{ ...BLANK_ITEM }],
@@ -46,8 +55,9 @@ const INITIAL_FORM = {
 };
 
 export function useUnifiedEntry() {
-    const { id } = useParams();      // Present when editing an existing transaction
+    const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     // ─── Transaction Type ────────────────────────────────────
     // REFACTOR: Type is top-level state, not buried inside formData,
@@ -81,27 +91,27 @@ export function useUnifiedEntry() {
     // Data Fetching
     // ════════════════════════════════════════════════════════
 
-    // Fetch customers, suppliers, and products for dropdowns.
-    // REFACTOR: Previously used raw axios (no JWT). Now uses api.js
-    // which attaches the Authorization: Bearer <token> header.
-    // Also fixed the response shape: .data.data not .data.customers
+    /**
+     * Fetch dropdown data (customers, suppliers, products).
+     * Uses the shared dataCache so:
+     *  - Data is fetched ONCE per session (5-min TTL)
+     *  - Navigating away and back does NOT re-fetch
+     *  - Two simultaneous callers share ONE in-flight request (dedup)
+     */
     const fetchDropdownData = useCallback(async () => {
         setDataLoading(true);
         try {
-            const [custRes, suppRes, prodRes] = await Promise.all([
-                api.get('/customers'),
-                api.get('/suppliers'),
-                api.get('/products'),
+            // Each key is cached independently — TTL 5 minutes
+            const [customers, suppliers, products] = await Promise.all([
+                getOrFetch('customers', () => api.get('/customers').then(r => r.data.data || [])),
+                getOrFetch('suppliers', () => api.get('/suppliers').then(r => r.data.data || [])),
+                getOrFetch('products',  () => api.get('/products').then(r => r.data.data || [])),
             ]);
-            // REFACTOR FIX: Backend returns paginated shape { data: [...], pagination: {...} }
-            // The old code read custRes.data.customers which was always undefined,
-            // making every dropdown permanently empty.
-            setCustomers(custRes.data.data || []);
-            setSuppliers(suppRes.data.data || []);
-            // Sync both state (for rendering dropdowns) and ref (for item change handler)
-            const prodList = prodRes.data.data || [];
-            setProducts(prodList);
-            productsRef.current = prodList; // Always up-to-date in closures
+
+            setCustomers(customers);
+            setSuppliers(suppliers);
+            setProducts(products);
+            productsRef.current = products;
         } catch (err) {
             toast.error('Could not load dropdown data. Please refresh.');
             console.error('[useUnifiedEntry] fetchDropdownData error:', err);
@@ -176,53 +186,170 @@ export function useUnifiedEntry() {
             const newItems = prev.items.map((item, i) => {
                 if (i !== index) return item;
 
-                const updated = { ...item, [field]: value };
+                let updated = { ...item, [field]: value };
 
-                // Auto-fill from product data when product is selected.
-                // REFACTOR: Using productsRef.current instead of products state
-                // avoids a stale closure and removes products from the dependency
-                // array (which would cause the handler to be recreated every render).
-                if (field === 'productId') {
-                    const product = productsRef.current.find(p => p.id === value);
+                if (field === 'FULL_PRODUCT_SELECTION') {
+                    const product = value;
                     if (product) {
-                        // Use selling price for SALE, cost price for PURCHASE
+                        updated.productId = product.id;
+                        updated.productName = product.name;
                         updated.unitPrice = type === 'SALE'
                             ? Number(product.sellingPrice)
                             : Number(product.costPrice);
-                        updated.unit = product.unit || 'pcs';
+                        updated.unit = product.unit || 'PCS';
                         updated.gstRate = Number(product.gstRate);
-                        // Store product name so PDF shows a label, not a UUID
-                        updated.productName = product.name;
+                        updated.unitsPerBox = product.unitsPerBox;
                     }
                 }
 
-                // Recalculate line total after every field change
-                const sub = Number(updated.quantity) * Number(updated.unitPrice);
+                if (field === 'bags' || field === 'weightPerBag' || field === 'qtyMode' || field === 'qtyList' || field === 'qtyRaw') {
+                    if (updated.qtyMode === 'equal') {
+                        const b = Number(updated.bags || 0);
+                        const w = Number(updated.weightPerBag || 0);
+                        updated.quantity = b * w;
+                    } else {
+                        // Variable mode logic
+                        if (field === 'qtyRaw' && value) {
+                            let parsedQty = 0;
+                            if (typeof value === 'string' && value.includes('+')) {
+                                parsedQty = value.split('+').map(s => Number(s.trim())).filter(n => !isNaN(n)).reduce((a, b) => a + b, 0);
+                            } else {
+                                parsedQty = Number(value);
+                            }
+                            if (!isNaN(parsedQty)) updated.quantity = parsedQty;
+                        } else {
+                            const list = updated.qtyList || [];
+                            const sum = list.reduce((a, b) => a + Number(b || 0), 0);
+                            updated.quantity = sum;
+                            
+                            if (sum === 0 && updated.qtyRaw && field !== 'qtyList') {
+                                let parsedQty = 0;
+                                const qr = updated.qtyRaw;
+                                if (qr.includes('+')) {
+                                    parsedQty = qr.split('+').map(s => Number(s.trim())).filter(n => !isNaN(n)).reduce((a, b) => a + b, 0);
+                                } else {
+                                    parsedQty = Number(qr);
+                                }
+                                if (!isNaN(parsedQty)) updated.quantity = parsedQty;
+                            }
+                        }
+                    }
+                }
+
+                if (field === 'productId') {
+                    const product = productsRef.current.find(p => p.id === value);
+                    if (product) {
+                        updated.unitPrice = type === 'SALE' ? Number(product.sellingPrice) : Number(product.costPrice);
+                        updated.unit = product.unit || 'PCS';
+                        updated.gstRate = Number(product.gstRate);
+                        updated.productName = product.name;
+                        updated.unitsPerBox = product.unitsPerBox;
+                    }
+                }
+
+                // Units conversion logic (BOX -> Qty)
+                let quantity = Number(updated.quantity || 0);
+                if (updated.unit === 'BOX' && updated.unitsPerBox) {
+                    quantity = Number(updated.boxes || 0) * updated.unitsPerBox;
+                    updated.quantity = quantity;
+                }
+
+                // Line item total calculation
+                const price = Number(updated.unitPrice || 0);
                 const disc = Number(updated.discount || 0);
-                const tax = (sub - disc) * (Number(updated.gstRate || 0) / 100);
-                updated.total = sub - disc + tax;
+                const gstRate = prev.invoiceType === 'GST' ? Number(updated.gstRate || 0) : 0;
+                
+                const lineNet = (quantity * price) - (quantity * disc);
+                const lineTax = (lineNet * gstRate) / 100;
+                updated.total = lineNet + lineTax;
 
                 return updated;
             });
-
             return { ...prev, items: newItems };
         });
-        // Only type matters here — productsRef is a ref (stable, no re-render needed)
     }, [type]);
 
     // Derive grand totals from items list (called on every render — cheap enough)
     const calculateTotals = useCallback(() => {
         const items = formData.items;
-        const subtotal = items.reduce((acc, item) =>
-            acc + Number(item.quantity) * Number(item.unitPrice), 0);
-        const discount = items.reduce((acc, item) =>
-            acc + Number(item.discount || 0), 0);
-        const tax = items.reduce((acc, item) => {
-            const sub = Number(item.quantity) * Number(item.unitPrice) - Number(item.discount || 0);
-            return acc + sub * (Number(item.gstRate || 0) / 100);
-        }, 0);
-        return { subtotal, discount, tax, total: subtotal - discount + tax };
-    }, [formData.items]);
+        const isGST = formData.invoiceType === 'GST';
+        
+        let subtotal = 0;
+        let discount = 0;
+        let tax = 0;
+        let cgst = 0;
+        let sgst = 0;
+        let igst = 0;
+
+        items.forEach(item => {
+            const qty = Number(item.quantity || 0);
+            const price = Number(item.unitPrice || 0);
+            const itemDisc = Number(item.discount || 0);
+            const gstRate = isGST ? Number(item.gstRate || 0) : 0;
+
+            const lineGross = qty * price;
+            const lineDisc = qty * itemDisc;
+            const lineNet = lineGross - lineDisc;
+            const lineGst = (lineNet * gstRate) / 100;
+
+            subtotal += lineGross;
+            discount += lineDisc;
+            tax += lineGst;
+
+            if (isGST) {
+                // Simplified split for demonstration
+                cgst += lineGst / 2;
+                sgst += lineGst / 2;
+            }
+        });
+
+        const overallDiscount = Number(formData.discount || 0);
+        const totalDiscount = discount + overallDiscount;
+        const grandTotal = subtotal - totalDiscount + tax;
+        const paidAmount = formData.payments.reduce((acc, p) => acc + Number(p.amount), 0);
+        const totalQuantity = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
+        
+        return { 
+            subtotal, 
+            discount: totalDiscount, 
+            tax, 
+            cgst, 
+            sgst, 
+            igst, 
+            total: grandTotal,
+            paidAmount,
+            totalQuantity
+        };
+    }, [formData.items, formData.invoiceType, formData.payments, formData.discount]);
+
+    // ─── Payment Splitter Handlers ───
+    const addPayment = useCallback(() => {
+        setFormData(prev => ({
+            ...prev,
+            payments: [...prev.payments, { method: 'CASH', amount: 0 }]
+        }));
+    }, []);
+
+    const removePayment = useCallback((index) => {
+        setFormData(prev => ({
+            ...prev,
+            payments: prev.payments.length > 1 
+                ? prev.payments.filter((_, i) => i !== index)
+                : prev.payments
+        }));
+    }, []);
+
+    const handlePaymentChange = useCallback((index, field, value) => {
+        setFormData(prev => {
+            const newPayments = prev.payments.map((p, i) => {
+                if (i !== index) return p;
+                return { ...p, [field]: value };
+            });
+            // Also update paidAmount for backward compat with backend service
+            const totalPaid = newPayments.reduce((acc, cur) => acc + Number(cur.amount), 0);
+            return { ...prev, payments: newPayments, paidAmount: totalPaid };
+        });
+    }, []);
 
     // ════════════════════════════════════════════════════════
     // Form Submission
@@ -235,28 +362,21 @@ export function useUnifiedEntry() {
         try {
             const totals = calculateTotals();
 
-            // Build the unified payload.
-            // customerId / supplierId are derived from partyId based on type —
-            // the backend uses one or the other depending on the entry type.
             const payload = {
                 ...formData,
                 type,
                 totalAmount: totals.total,
+                paidAmount: totals.paidAmount,
                 customerId: (type === 'SALE' || type === 'PAYMENT') ? formData.partyId : null,
                 supplierId: type === 'PURCHASE' ? formData.partyId : null,
-                // storeId is derived server-side from the JWT — not sent from client
             };
 
-            // REFACTOR FIX: Use api (with JWT interceptor) instead of raw axios
             const res = await api.post('/transactions', payload);
 
-            // Generate and download PDF invoice if the option is toggled on
             if (formData.options.generateInvoice && (type === 'SALE' || type === 'PURCHASE')) {
                 const partyList = type === 'SALE' ? customers : suppliers;
                 const party = partyList.find(p => p.id === formData.partyId);
 
-                // REFACTOR FIX: Pass products as productMap so PDF resolves
-                // product UUIDs to human-readable product names
                 generateInvoicePDF(
                     {
                         ...payload,
@@ -264,9 +384,10 @@ export function useUnifiedEntry() {
                         partyName: party?.name,
                         mobile: party?.phone,
                         invoiceNumber: res.data.data?.invoiceNumber,
+                        store: user?.store, // Pass full store details
                     },
                     type,
-                    products, // productMap: array of { id, name, ... }
+                    products,
                 );
             }
 
@@ -279,7 +400,7 @@ export function useUnifiedEntry() {
         } finally {
             setLoading(false);
         }
-    }, [formData, type, customers, suppliers, products, calculateTotals, navigate]);
+    }, [formData, type, customers, suppliers, products, calculateTotals, navigate, user?.store]);
 
     // ════════════════════════════════════════════════════════
     // Public API (what the page component gets)
@@ -302,6 +423,9 @@ export function useUnifiedEntry() {
         addItem,
         removeItem,
         handleItemChange,
+        addPayment,
+        removePayment,
+        handlePaymentChange,
         handleSubmit,
     };
 }

@@ -14,103 +14,155 @@
 import { ArrowPathIcon, CheckCircleIcon, CreditCardIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 // Added CARD option — was missing from the original payment method list
+// Added CARD option — was missing from the original payment method list
 const PAYMENT_METHODS = [
-    { value: 'CASH', label: '💵  Cash' },
-    { value: 'UPI', label: '📱  UPI / Digital Wallet' },
-    { value: 'CREDIT', label: '📋  Credit (No payment now)' },
-    { value: 'BANK_TRANSFER', label: '🏦  Bank Transfer / NEFT' },
-    { value: 'CARD', label: '💳  Debit / Credit Card' },
+    { value: 'CASH', label: '💵 Cash' },
+    { value: 'UPI', label: '📱 UPI' },
+    { value: 'CARD', label: '💳 Card' },
+    { value: 'BANK_TRANSFER', label: '🏦 Bank' },
+    { value: 'CREDIT', label: '📋 Credit' },
+    { value: 'OTHER', label: '🔘 Other' },
 ];
 
 // Format a value as Indian Rupees
 const fmt = v => `₹ ${Number(v || 0).toFixed(2)}`;
 
-export default function EntrySummaryPanel({ totals, formData, loading, onChange }) {
-    const discountTotal = formData.items?.reduce((a, c) => a + Number(c.discount || 0), 0) || 0;
-    const paidAmount = Number(formData.paidAmount || 0);
-    const remaining = totals.total - paidAmount;
+export default function EntrySummaryPanel({ 
+    totals, formData, loading, onChange,
+    onAddPayment, onRemovePayment, onPaymentChange
+}) {
+    const isGST = formData.invoiceType === 'GST';
+    const remaining = totals.total - totals.paidAmount;
 
     return (
         <div className="space-y-4">
             {/* ── Totals + Payment Card ───────────────────────── */}
-            <div className="card p-6 bg-surface-900 text-white overflow-hidden relative rounded-2xl">
+            <div className="card p-6 bg-surface-900 border-0 text-white overflow-hidden relative rounded-2xl shadow-2xl">
                 {/* Decorative glow blob */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500 opacity-20 blur-3xl
-                                -mr-16 -mt-16 rounded-full pointer-events-none" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500 opacity-20 blur-3xl -mr-16 -mt-16 rounded-full pointer-events-none" />
 
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-2 border-b border-white/10 pb-4">
-                    <CreditCardIcon className="w-6 h-6" />
+                    <CreditCardIcon className="w-6 h-6 text-primary-400" />
                     Summary
                 </h3>
 
                 {/* Line totals breakdown */}
                 <div className="space-y-3 text-sm">
-                    <div className="flex justify-between text-surface-300">
+                    <div className="flex justify-between text-surface-400">
                         <span>Subtotal</span>
-                        <span>{fmt(totals.subtotal)}</span>
+                        <span className="font-mono">{fmt(totals.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between text-surface-300">
-                        <span>GST / Tax</span>
-                        <span>{fmt(totals.tax)}</span>
-                    </div>
-                    {discountTotal > 0 && (
+
+                    {isGST && (
+                        <>
+                            {totals.cgst > 0 && (
+                                <div className="flex justify-between text-surface-400 pl-4 border-l border-white/10">
+                                    <span>CGST</span>
+                                    <span className="font-mono">{fmt(totals.cgst)}</span>
+                                </div>
+                            )}
+                            {totals.sgst > 0 && (
+                                <div className="flex justify-between text-surface-400 pl-4 border-l border-white/10">
+                                    <span>SGST</span>
+                                    <span className="font-mono">{fmt(totals.sgst)}</span>
+                                </div>
+                            )}
+                            {totals.igst > 0 && (
+                                <div className="flex justify-between text-surface-400 pl-4 border-l border-white/10">
+                                    <span>IGST</span>
+                                    <span className="font-mono">{fmt(totals.igst)}</span>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {totals.discount > 0 && (
                         <div className="flex justify-between text-red-400">
-                            <span>Discount</span>
-                            <span>─ {fmt(discountTotal)}</span>
+                            <span>Total Discount</span>
+                            <span className="font-mono">─ {fmt(totals.discount)}</span>
                         </div>
                     )}
+
+                    <div className="flex justify-between text-primary-400/80 pt-2 border-t border-white/5">
+                        <span className="text-[10px] uppercase font-black tracking-widest">Total Weight/Qty</span>
+                        <span className="font-black">{totals.totalQuantity || 0} Units</span>
+                    </div>
+
                     {/* Grand total */}
                     <div className="pt-4 border-t border-white/10">
-                        <p className="text-[10px] text-surface-400 uppercase tracking-wider font-bold">
+                        <p className="text-[10px] text-surface-500 uppercase tracking-widest font-bold">
                             Grand Total
                         </p>
-                        <p className="text-4xl font-extrabold text-primary-400 mt-1">
+                        <p className="text-4xl font-extrabold text-primary-400 mt-1 font-mono tracking-tighter">
                             {fmt(totals.total)}
                         </p>
                     </div>
                 </div>
 
-                {/* Payment inputs */}
-                <div className="pt-6 space-y-4">
-                    <div className="form-group">
-                        <label className="text-xs font-bold text-surface-400 uppercase tracking-widest block mb-1">
-                            Payment Method
+                {/* Split Payment Splitter */}
+                <div className="pt-8 space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="text-[10px] font-bold text-surface-500 uppercase tracking-widest block">
+                            Payment Distribution
                         </label>
-                        <select
-                            name="paymentMethod"
-                            value={formData.paymentMethod}
-                            onChange={onChange}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
-                                       outline-none focus:ring-2 focus:ring-primary-500 text-white"
+                        <button 
+                            type="button" 
+                            onClick={onAddPayment}
+                            className="text-[10px] font-bold text-primary-400 hover:text-primary-300 transition-colors uppercase"
                         >
-                            {PAYMENT_METHODS.map(m => (
-                                <option key={m.value} value={m.value}>{m.label}</option>
-                            ))}
-                        </select>
+                            + Add Method
+                        </button>
                     </div>
 
-                    <div className="form-group">
-                        <label className="text-xs font-bold text-surface-400 uppercase tracking-widest block mb-1">
-                            Amount Paid Now
-                        </label>
-                        <input
-                            type="number"
-                            name="paidAmount"
-                            value={formData.paidAmount}
-                            onChange={onChange}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
-                                       outline-none focus:ring-2 focus:ring-primary-500
-                                       text-xl font-bold text-white"
-                            min="0"
-                            step="0.01"
-                        />
-                        {/* REFACTOR: New — show live credit balance so staff know
-                            how much will be recorded as outstanding in the khata */}
-                        {remaining > 0 && totals.total > 0 && (
-                            <p className="text-xs text-amber-400 mt-1.5 flex items-center gap-1">
-                                <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
-                                {fmt(remaining)} will be added to credit / khata
-                            </p>
+                    <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                        {formData.payments.map((p, idx) => (
+                            <div key={idx} className="flex gap-2 items-center bg-white/5 p-2 rounded-xl group">
+                                <select
+                                    value={p.method}
+                                    onChange={e => onPaymentChange(idx, 'method', e.target.value)}
+                                    className="bg-transparent border-0 text-xs font-bold outline-none focus:ring-0 w-24"
+                                >
+                                    {PAYMENT_METHODS.map(m => (
+                                        <option key={m.value} value={m.value} className="bg-surface-900">{m.label}</option>
+                                    ))}
+                                </select>
+                                <input
+                                    type="number"
+                                    value={p.amount}
+                                    onChange={e => onPaymentChange(idx, 'amount', Number(e.target.value))}
+                                    className="bg-transparent border-0 text-right text-sm font-mono w-full outline-none focus:ring-0"
+                                    placeholder="0.00"
+                                />
+                                {formData.payments.length > 1 && (
+                                    <button 
+                                        type="button" 
+                                        onClick={() => onRemovePayment(idx)}
+                                        className="text-surface-500 hover:text-red-400 transition-colors p-1"
+                                    >
+                                        &times;
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Total Paid / Remaining Summary */}
+                    <div className="pt-4 mt-2">
+                        <div className="flex justify-between text-xs mb-1">
+                            <span className="text-surface-500">Total Paid</span>
+                            <span className="font-bold">{fmt(totals.paidAmount)}</span>
+                        </div>
+                        {remaining > 0 && (
+                            <div className="flex justify-between text-xs text-amber-400 italic">
+                                <span>Balance (Credit)</span>
+                                <span>{fmt(remaining)}</span>
+                            </div>
+                        )}
+                        {remaining < 0 && (
+                            <div className="flex justify-between text-xs text-red-400 italic">
+                                <span>Change to Return</span>
+                                <span>{fmt(Math.abs(remaining))}</span>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -135,14 +187,13 @@ export default function EntrySummaryPanel({ totals, formData, loading, onChange 
             </div>
 
             {/* ── Staff Approval Notice ─────────────────────────── */}
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
-                <ExclamationTriangleIcon className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
+            <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/30 flex items-start gap-3">
+                <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <div>
-                    <p className="text-sm font-bold text-amber-900">Staff Approval Notice</p>
-                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                        Entries are saved immediately. Any <strong>edits</strong> to
-                        existing transactions go to the admin approval queue and will
-                        not take effect until approved.
+                    <p className="text-xs font-bold text-amber-900">Staff Approval Notice</p>
+                    <p className="text-[10px] text-amber-800 mt-1 leading-relaxed opacity-80">
+                        Entries are saved immediately. Any edits to existing transactions 
+                        go to the admin approval queue and will not take effect until approved.
                     </p>
                 </div>
             </div>

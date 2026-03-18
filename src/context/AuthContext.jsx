@@ -2,8 +2,9 @@
 // Auth Context (Global Authentication State)
 // ============================================
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { authAPI } from '../services/api';
+import { clearCache, getOrFetch } from '../utils/dataCache';
 
 const AuthContext = createContext(null);
 
@@ -71,17 +72,18 @@ export function AuthProvider({ children }) {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
+            // Clear dropdown cache so next login gets fresh data
+            clearCache();
             setUser(null);
         }
     }, []);
 
     const refreshProfile = useCallback(async () => {
         try {
-            const { data } = await authAPI.getProfile();
-            if (data.success) {
-                localStorage.setItem('user', JSON.stringify(data.data));
-                setUser(data.data);
-            }
+            // PERF: Deduplicate profile check (handles StrictMode double mount)
+            const data = await getOrFetch('profile', () => authAPI.getProfile().then(r => r.data.data), 30000);
+            localStorage.setItem('user', JSON.stringify(data));
+            setUser(data);
         } catch (_) {
             // Token might be invalid
         }
@@ -95,7 +97,9 @@ export function AuthProvider({ children }) {
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const value = {
+    // Memoize the context value so consumers only re-render when user/loading/error
+    // actually changes — not on every AuthProvider render cycle.
+    const value = useMemo(() => ({
         user,
         loading,
         error,
@@ -106,7 +110,7 @@ export function AuthProvider({ children }) {
         logout,
         refreshProfile,
         setError,
-    };
+    }), [user, loading, error, isAuthenticated, isAdmin, login, register, logout, refreshProfile, setError]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -8,7 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useNotifications } from '../../context/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 import {
     HiOutlineBell,
     HiOutlineCheckCircle,
@@ -116,7 +116,7 @@ export default function NotificationCenter() {
         notifications, unreadCount,
         markRead, markAllRead, clearAll, deleteNotification,
         pushEnabled, requestPushPermission,
-    } = useNotifications();
+    } = useNotification();
 
     const [open, setOpen] = useState(false);
     const panelRef = useRef(null);

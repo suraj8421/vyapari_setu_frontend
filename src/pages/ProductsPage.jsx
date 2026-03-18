@@ -15,6 +15,7 @@ import {
 } from 'react-icons/hi2';
 import ScannerModal from '../components/common/ScannerModal';
 import AIScanner from '../components/common/AIScanner';
+import { getOrFetch } from '../utils/dataCache';
 import { toast } from 'react-hot-toast';
 
 import Translate from '../components/common/Translate';
@@ -40,23 +41,30 @@ export default function ProductsPage() {
     const [aiScannerOpen, setAiScannerOpen] = useState(false);
 
     const emptyForm = {
-        name: '', sku: '', barcode: '', category: '', unit: 'pcs',
+        name: '', sku: '', barcode: '', category: '', unit: 'PCS',
         costPrice: '', sellingPrice: '', gstRate: 0, hsnCode: '',
+        unitsPerBox: 1, allowLooseSale: true,
         storeId: user?.storeId || '', initialStock: 0, minStockLevel: 10,
     };
     const [form, setForm] = useState(emptyForm);
 
+    // ─── Products Fetch (Paged/Filtered) ───────────────────
     useEffect(() => {
         fetchProducts();
+    }, [page, search, category]);
+
+    // ─── Static/Reference Data (Cached) ─────────────────────
+    useEffect(() => {
         fetchCategories();
         if (isAdmin) fetchStores();
-    }, [page, search, category]);
+    }, [isAdmin]);
 
     const fetchProducts = async () => {
         setLoading(true);
         try {
             const params = { page, limit: 15, search, category };
-            const { data } = await productAPI.getAll(params);
+            const key = `products_list_${JSON.stringify(params)}`;
+            const data = await getOrFetch(key, () => productAPI.getAll(params).then(r => r.data), 10000);
             setProducts(data.data || []);
             setPagination(data.pagination);
         } catch (err) {
@@ -68,15 +76,15 @@ export default function ProductsPage() {
 
     const fetchCategories = async () => {
         try {
-            const { data } = await productAPI.getCategories();
-            setCategories(data.data || []);
+            const data = await getOrFetch('categories', () => productAPI.getCategories().then(r => r.data.data || []));
+            setCategories(data || []);
         } catch (_) { }
     };
 
     const fetchStores = async () => {
         try {
-            const { data } = await storeAPI.getAll({ limit: 100 });
-            setStores(data.data || []);
+            const data = await getOrFetch('stores', () => storeAPI.getAll({ limit: 100 }).then(r => r.data.data || []));
+            setStores(data || []);
         } catch (_) { }
     };
 
@@ -93,6 +101,7 @@ export default function ProductsPage() {
             category: product.category || '', unit: product.unit, costPrice: Number(product.costPrice),
             sellingPrice: Number(product.sellingPrice), gstRate: Number(product.gstRate),
             hsnCode: product.hsnCode || '', storeId: product.storeId,
+            unitsPerBox: product.unitsPerBox || 1, allowLooseSale: product.allowLooseSale ?? true,
             initialStock: 0, minStockLevel: product.inventory?.[0]?.minStockLevel || 10,
         });
         setModalOpen(true);
@@ -107,12 +116,10 @@ export default function ProductsPage() {
                 ...emptyForm,
                 storeId: user?.storeId || stores[0]?.id || '',
                 ...data,
-                // Ensure inputs don't break with nulls or empty strings being overwrote poorly
                 minStockLevel: data.minStockLevel || 10
             });
             setModalOpen(true);
         } else if (action === 'BULK_IMPORT') {
-            // Bulk import logic via backend
             for (const item of data) {
                 if (item.matchFound) {
                     await productAPI.update(item.existingProduct.id, { ...item.extracted });
@@ -134,6 +141,7 @@ export default function ProductsPage() {
                 costPrice: Number(form.costPrice),
                 sellingPrice: Number(form.sellingPrice),
                 gstRate: Number(form.gstRate),
+                unitsPerBox: Number(form.unitsPerBox),
                 initialStock: Number(form.initialStock),
                 minStockLevel: Number(form.minStockLevel),
             };
@@ -172,9 +180,6 @@ export default function ProductsPage() {
         const minLevel = inventory?.minStockLevel || 10;
         const maxLevel = inventory?.maxStockLevel;
 
-        // Calculate reorder suggestion on the fly if the item is low stock:
-        // Priority 1: Use maxStockLevel if defined to fill the quota.
-        // Priority 2: Fallback to filling up to double the min level (buffer strategy).
         let suggestion = 0;
         if (totalStock <= minLevel) {
             if (maxLevel && maxLevel > totalStock) {
@@ -370,12 +375,28 @@ export default function ProductsPage() {
                         <div>
                             <label className="input-label">{t('products.unit')}</label>
                             <select className="select-field" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
-                                <option value="pcs">{t('inventory.units.pcs')}</option>
-                                <option value="kg">{t('inventory.units.kg')}</option>
-                                <option value="ltr">{t('inventory.units.ltr')}</option>
-                                <option value="box">{t('inventory.units.box')}</option>
-                                <option value="pack">{t('inventory.units.pack')}</option>
+                                <option value="PCS">{t('inventory.units.pcs')}</option>
+                                <option value="KG">{t('inventory.units.kg')}</option>
+                                <option value="LTR">{t('inventory.units.ltr')}</option>
+                                <option value="BOX">{t('inventory.units.box')}</option>
+                                <option value="PACK">{t('inventory.units.pack')}</option>
                             </select>
+                        </div>
+                        <div>
+                            <label className="input-label">Units Per Box</label>
+                            <input type="number" className="input-field" value={form.unitsPerBox} onChange={(e) => setForm({ ...form, unitsPerBox: Number(e.target.value) })} />
+                        </div>
+                        <div className="flex items-center gap-2 pt-6">
+                            <input 
+                                type="checkbox" 
+                                id="allowLooseSale"
+                                checked={form.allowLooseSale} 
+                                onChange={(e) => setForm({ ...form, allowLooseSale: e.target.checked })} 
+                                className="w-4 h-4 text-primary-600 border-surface-300 rounded"
+                            />
+                            <label htmlFor="allowLooseSale" className="text-sm font-medium text-surface-700 cursor-pointer">
+                                Allow Loose Sale (PCS / Loose KG)
+                            </label>
                         </div>
                         {isAdmin && stores.length > 0 && (
                             <div>
@@ -413,7 +434,6 @@ export default function ProductsPage() {
                 isOpen={aiScannerOpen}
                 onClose={() => setAiScannerOpen(false)}
                 onApply={(fields) => {
-                    // Map extracted fields into the product form
                     setForm(prev => ({
                         ...prev,
                         ...(fields.name && { name: fields.name }),
@@ -424,7 +444,7 @@ export default function ProductsPage() {
                         ...(fields.hsn && { hsnCode: fields.hsn }),
                         ...(fields.category && { category: fields.category }),
                     }));
-                    setModalOpen(true); // Ensure product modal is open
+                    setModalOpen(true);
                     toast.success(`AI applied ${Object.keys(fields).length} field(s) to the form`);
                 }}
                 context="product"
@@ -437,6 +457,6 @@ export default function ProductsPage() {
                 onAction={handleScannerAction}
                 stores={stores}
             />
-        </div >
+        </div>
     );
 }

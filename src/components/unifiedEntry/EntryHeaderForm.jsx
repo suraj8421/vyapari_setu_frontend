@@ -13,6 +13,7 @@
 import { CalendarIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import AutocompleteInput from '../common/AutocompleteInput';
 
 export default function EntryHeaderForm({ formData, type, customers, suppliers, onChange }) {
     const { t } = useTranslation();
@@ -26,7 +27,7 @@ export default function EntryHeaderForm({ formData, type, customers, suppliers, 
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card p-6 grid grid-cols-1 md:grid-cols-4 gap-6"
+            className="card p-6 grid grid-cols-1 md:grid-cols-5 gap-6"
         >
             {/* Transaction Date */}
             <div className="form-group">
@@ -44,43 +45,77 @@ export default function EntryHeaderForm({ formData, type, customers, suppliers, 
                 </div>
             </div>
 
-            {/* Customer or Supplier — label and list swap based on entry type */}
+            {/* Customer or Supplier */}
             <div className="form-group md:col-span-2">
                 <label className="label">{partyLabel}</label>
                 <div className="relative">
-                    <UserGroupIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <select
-                        name="partyId"
-                        value={formData.partyId}
-                        onChange={onChange}
-                        className="input pl-10 h-12 rounded-xl"
-                    >
-                        <option value="">Select Party</option>
-                        {/* REFACTOR FIX: partyList now populates correctly because
-                            fetchDropdownData reads .data.data not .data.customers */}
-                        {partyList.map(p => (
-                            <option key={p.id} value={p.id}>
-                                {p.name}{p.phone ? ` (${p.phone})` : ''}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            {/* Expected Delivery Date (optional) */}
-            <div className="form-group">
-                <label className="label">Expected Delivery</label>
-                <div className="relative">
-                    <ClockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                        type="date"
-                        name="deliveryDate"
-                        value={formData.deliveryDate}
-                        onChange={onChange}
-                        className="input pl-10 h-12 rounded-xl"
+                    <UserGroupIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
+                    <AutocompleteInput 
+                        value={formData.partyName || ''}
+                        onChange={(val) => onChange({ target: { name: 'partyName', value: val } })}
+                        onSelect={(item) => {
+                            onChange({ target: { name: 'partyId', value: item.id } });
+                            onChange({ target: { name: 'partyName', value: item.name } });
+                            if (item.phone) onChange({ target: { name: 'mobile', value: item.phone } });
+                        }}
+                        endpoint={isSaleOrPayment ? '/customers' : '/suppliers'}
+                        placeholder={`Search ${partyLabel}...`}
+                        className="input pl-10 h-12 rounded-xl w-full"
                     />
                 </div>
             </div>
+
+            {/* Invoice Type (Only for SALE/PURCHASE) */}
+            {(type === 'SALE' || type === 'PURCHASE') ? (
+                <div className="form-group">
+                    <label className="label">Invoice Type</label>
+                    <div className="flex bg-surface-100 p-1 rounded-xl h-12">
+                        <button
+                            type="button"
+                            onClick={() => onChange({ target: { name: 'invoiceType', value: 'GST' } })}
+                            className={`flex-1 flex items-center justify-center text-sm font-semibold rounded-lg transition-all ${
+                                formData.invoiceType === 'GST' 
+                                    ? 'bg-white shadow-sm text-primary-600' 
+                                    : 'text-surface-500 hover:text-surface-700'
+                            }`}
+                        >
+                            GST
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onChange({ target: { name: 'invoiceType', value: 'NON_GST' } })}
+                            className={`flex-1 flex items-center justify-center text-sm font-semibold rounded-lg transition-all ${
+                                formData.invoiceType === 'NON_GST' 
+                                    ? 'bg-white shadow-sm text-primary-600' 
+                                    : 'text-surface-500 hover:text-surface-700'
+                            }`}
+                        >
+                            Non-GST
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                 <div className="hidden md:block"></div>
+            )}
+
+            {/* Expected Delivery Date (optional - only for orders/sales) */}
+            {(type === 'SALE' || type === 'PURCHASE') ? (
+                <div className="form-group">
+                    <label className="label">Expected Delivery</label>
+                    <div className="relative">
+                        <ClockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                            type="date"
+                            name="deliveryDate"
+                            value={formData.deliveryDate}
+                            onChange={onChange}
+                            className="input pl-10 h-12 rounded-xl"
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="hidden md:block"></div>
+            )}
         </motion.div>
     );
 }

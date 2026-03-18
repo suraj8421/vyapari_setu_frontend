@@ -71,7 +71,7 @@ export const authAPI = {
     register: (data) => api.post('/auth/register', data),
     refresh: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
     logout: () => api.post('/auth/logout'),
-    getProfile: () => api.get('/auth/me'),
+    getProfile: () => api.get('/auth/profile'),
 };
 
 // Dashboard
@@ -187,5 +187,103 @@ export const scannerAPI = {
     })
 };
 
+// B2B Network API
+export const b2bAPI = {
+    // Network
+    getConnections: () => api.get('/b2b/network'),
+    searchStores: (query) => api.get('/b2b/network/search', { params: { q: query } }),
+    requestConnection: (targetStoreId, intent) => api.post('/b2b/network/request', { targetStoreId, intent }),
+    acceptConnection: (connectionId) => api.post(`/b2b/network/${connectionId}/accept`),
+    
+    // Invoices
+    getInvoices: () => api.get('/b2b/invoices'),
+    createInvoice: (data) => api.post('/b2b/invoices/create', data),
+    confirmInvoice: (id) => api.post(`/b2b/invoices/${id}/confirm`),
+    rejectInvoice: (id, reason) => api.post(`/b2b/invoices/${id}/reject`, { reason }),
+    requestCorrection: (id, reason) => api.post(`/b2b/invoices/${id}/request-correction`, { reason }),
+
+    // Messages
+    getMessages: (invoiceId) => api.get(`/b2b/messages/${invoiceId}`),
+    sendMessage: (invoiceId, messageText) => api.post('/b2b/messages/send', { invoiceId, messageText }),
+
+    // Notifications
+    getNotifications: () => api.get('/b2b/notifications'),
+    markAsRead: (id) => api.post(`/b2b/notifications/${id}/read`),
+    markAllAsRead: () => api.post('/b2b/notifications/mark-all-read'),
+};
+
+// Unified Approval Notification API
+export const approvalAPI = {
+    getAll: (params) => api.get('/approvals', { params }),
+    getUnreadCount: () => api.get('/approvals/unread-count'),
+    markRead: (id) => api.patch(`/approvals/${id}/read`),
+    markAllRead: () => api.post('/approvals/mark-all-read'),
+    confirmInvoice: (notifId) => api.post(`/approvals/${notifId}/confirm-invoice`),
+    rejectInvoice: (notifId, reason) => api.post(`/approvals/${notifId}/reject-invoice`, { reason }),
+    acceptConnection: (notifId) => api.post(`/approvals/${notifId}/accept-connection`),
+    // NEW: Properly blocks the connection (sets status BLOCKED) rather than just marking read
+    rejectConnection: (notifId, reason) => api.post(`/approvals/${notifId}/reject-connection`, { reason }),
+    lock: (id) => api.post(`/approvals/${id}/lock`),
+    unlock: (id) => api.post(`/approvals/${id}/unlock`),
+    bulkAction: (ids, action) => api.post(`/approvals/bulk-action`, { ids, action }),
+};
+
 export default api;
 
+// ─── Customer Portal API (separate Axios instance with customer tokens) ────
+
+const CUSTOMER_API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/customer-portal` : '/api/customer-portal';
+
+const customerApi = axios.create({
+    baseURL: CUSTOMER_API_BASE,
+    headers: { 'Content-Type': 'application/json' },
+});
+
+// Attach customer token (stored separately from business token)
+customerApi.interceptors.request.use((config) => {
+    const token = localStorage.getItem('customerAccessToken');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+// Handle customer token refresh
+customerApi.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            try {
+                const refreshToken = localStorage.getItem('customerRefreshToken');
+                if (!refreshToken) throw new Error('No refresh token');
+                const { data } = await axios.post(`${CUSTOMER_API_BASE}/refresh`, { refreshToken });
+                if (data.success) {
+                    localStorage.setItem('customerAccessToken', data.data.accessToken);
+                    localStorage.setItem('customerRefreshToken', data.data.refreshToken);
+                    originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
+                    return customerApi(originalRequest);
+                }
+            } catch (_) {
+                localStorage.removeItem('customerAccessToken');
+                localStorage.removeItem('customerRefreshToken');
+                localStorage.removeItem('customerUser');
+                window.location.href = '/customer-portal';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
+export const customerPortalAPI = {
+    register: (data) => customerApi.post('/register', data),
+    login: (data) => customerApi.post('/login', data),
+    refresh: (refreshToken) => customerApi.post('/refresh', { refreshToken }),
+    logout: () => customerApi.post('/logout'),
+    getProfile: () => customerApi.get('/profile'),
+    getNotifications: (params) => customerApi.get('/notifications', { params }),
+    acceptNotification: (id) => customerApi.put(`/notifications/${id}/accept`),
+    rejectNotification: (id, reason) => customerApi.put(`/notifications/${id}/reject`, { reason }),
+    getPurchases: (params) => customerApi.get('/purchases', { params }),
+};

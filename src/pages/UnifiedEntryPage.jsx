@@ -77,6 +77,9 @@ export default function UnifiedEntryPage() {
         addItem,
         removeItem,
         handleItemChange,
+        addPayment,
+        removePayment,
+        handlePaymentChange,
         handleSubmit,
     } = useUnifiedEntry();
 
@@ -126,6 +129,7 @@ export default function UnifiedEntryPage() {
                             items={formData.items}
                             products={products}
                             type={type}
+                            invoiceType={formData.invoiceType}
                             onItemChange={handleItemChange}
                             onAddItem={addItem}
                             onRemoveItem={removeItem}
@@ -180,6 +184,9 @@ export default function UnifiedEntryPage() {
                                 formData={formData}
                                 loading={loading}
                                 onChange={handleInputChange}
+                                onAddPayment={addPayment}
+                                onRemovePayment={removePayment}
+                                onPaymentChange={handlePaymentChange}
                             />
 
                             {/* REFACTOR: AuditTrail was ~35 lines of inline JSX.

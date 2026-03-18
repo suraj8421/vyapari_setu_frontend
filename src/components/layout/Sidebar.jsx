@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import {
     HiOutlineChartBarSquare,
     HiOutlineCube,
@@ -18,42 +19,17 @@ import {
     HiOutlineCurrencyRupee,
     HiOutlineClipboardDocumentList,
     HiOutlineUserGroup,
-    // NEW: Approvals page icon
     HiOutlineClipboardDocumentCheck,
-    // NEW: Expenses page icon
     HiOutlineReceiptRefund,
-    // NEW: Inventory page icon
     HiOutlineCubeTransparent,
 } from 'react-icons/hi2';
-import { transactionAPI } from '../../services/api';
 
 export default function Sidebar({ isOpen, onClose }) {
     const { t } = useTranslation();
     const { user, isAdmin, logout } = useAuth();
-
-    // NEW: Live badge — polls /api/transactions/pending to show how many
-    // staff edits are waiting. Only fetches if the user is an admin.
-    const [pendingCount, setPendingCount] = useState(0);
-
-    useEffect(() => {
-        if (!isAdmin) return;
-
-        const fetchPendingCount = async () => {
-            try {
-                const res = await transactionAPI.getPending();
-                setPendingCount((res.data.data || []).length);
-            } catch (_) {
-                // Silently fail — badge is non-critical
-            }
-        };
-
-        // Fetch immediately on mount
-        fetchPendingCount();
-
-        // Re-check every 60 seconds so the badge stays current
-        const interval = setInterval(fetchPendingCount, 60_000);
-        return () => clearInterval(interval);
-    }, [isAdmin]);
+    
+    // Use unified NotificationContext instead of polling transactionAPI
+    const { unreadCount: pendingCount } = useNotification();
 
     const navItems = [
         { to: '/entry', icon: HiOutlineClipboardDocumentList, label: t('nav.unifiedEntry') },
@@ -78,6 +54,7 @@ export default function Sidebar({ isOpen, onClose }) {
             adminOnly: true,
             badge: pendingCount > 0 ? pendingCount : null,
         },
+        { to: '/b2b/network', icon: HiOutlineUserGroup, label: t('nav.b2bNetwork') },
     ];
 
     const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);

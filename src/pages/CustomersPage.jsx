@@ -18,6 +18,7 @@ import {
     HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineArrowUp, HiOutlineArrowDown,
     HiOutlineDocumentArrowDown,
 } from 'react-icons/hi2';
+import { getOrFetch } from '../utils/dataCache';
 
 export default function CustomersPage() {
     const { t } = useTranslation();
@@ -44,6 +45,7 @@ export default function CustomersPage() {
     const [form, setForm] = useState(emptyForm);
     const [payForm, setPayForm] = useState({ customerId: '', amount: '', paymentMethod: 'CASH', description: '', reference: '' });
 
+    // ─── Customer Data (Paged/Filtered) ───────────────────
     useEffect(() => {
         // Update URL
         const params = {};
@@ -55,8 +57,12 @@ export default function CustomersPage() {
         setSearchParams(params, { replace: true });
 
         fetchCustomers();
-        if (isAdmin) fetchStores();
     }, [page, search]);
+
+    // ─── Static/Reference Data (Cached) ─────────────────────
+    useEffect(() => {
+        if (isAdmin) fetchStores();
+    }, [isAdmin]);
 
     // Handle deep link for ledger
     useEffect(() => {
@@ -72,7 +78,11 @@ export default function CustomersPage() {
     const fetchCustomers = async () => {
         setLoading(true);
         try {
-            const { data } = await customerAPI.getAll({ page, limit: 15, search });
+            const params = { page, limit: 15, search };
+            // PERF: Deduplicate list fetch
+            const key = `customers_list_${JSON.stringify(params)}`;
+            const data = await getOrFetch(key, () => customerAPI.getAll(params).then(r => r.data), 10000);
+
             setCustomers(data.data || []);
             setPagination(data.pagination);
         } catch (err) { console.error(err); }
@@ -80,7 +90,10 @@ export default function CustomersPage() {
     };
 
     const fetchStores = async () => {
-        try { const { data } = await storeAPI.getAll({ limit: 100 }); setStores(data.data || []); } catch (_) { }
+        try {
+            const data = await getOrFetch('stores', () => storeAPI.getAll({ limit: 100 }).then(r => r.data.data || []));
+            setStores(data || []);
+        } catch (_) { }
     };
 
     const openKhata = async (customer) => {

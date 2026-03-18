@@ -65,6 +65,7 @@ const en = {
             searchPlaceholder: 'Search by name or SKU...',
             export: 'Export',
             sold: 'sold',
+            allTime: 'All Time',
         },
 
         // ─── Auth ───────────────────────────────
@@ -151,6 +152,8 @@ const en = {
             expenses: 'Expenses',
             approvals: 'Approvals',
             unifiedEntry: 'Quick Entry',
+            b2bNetwork: 'B2B Network',
+            b2bInvoices: 'B2B Invoices',
         },
 
         // ─── Products ───────────────────────────
@@ -242,6 +245,8 @@ const en = {
             confirm: 'Confirm Return',
             returnWarning: 'This action cannot be undone. The sale status will be permanently changed.',
             soldBy: 'Sold By',
+            allPayments: 'All Payment Methods',
+            return: 'Return',
         },
 
         // ─── Purchases ──────────────────────────
@@ -259,8 +264,11 @@ const en = {
         suppliers: {
             title: 'Suppliers',
             addSupplier: 'Add Supplier',
+            editSupplier: 'Edit Supplier',
+            supplierName: 'Supplier Name',
             companyName: 'Company Name',
             contactPerson: 'Contact Person',
+            gstNumber: 'GST Number',
             gstin: 'GSTIN',
             outstandingBalance: 'Outstanding Balance',
         },
@@ -273,6 +281,19 @@ const en = {
             creditLimit: 'Credit Limit',
             currentBalance: 'Current Balance',
             viewLedger: 'View Ledger',
+            // Khata / Ledger modal keys
+            balance: 'Outstanding Balance',
+            khataTtle: 'Khata — {{name}}',
+            viewKhata: 'View Khata',
+            recordPayment: 'Record Payment',
+            creditEntry: 'Credit (Sale)',
+            debitEntry: 'Payment Received',
+            balanceAfter: 'Balance After',
+            exportPdf: 'Export PDF',
+            filterDue: 'Has Dues',
+            noLedger: 'No ledger entries yet.',
+            paymentSuccess: 'Payment recorded successfully',
+            exportSuccess: 'Ledger exported as PDF',
         },
 
         // ─── Users ──────────────────────────────
@@ -298,6 +319,8 @@ const en = {
             startDate: 'Start Date',
             endDate: 'End Date',
             generate: 'Generate Report',
+            profitLoss: 'Profit & Loss',
+            noPayments: 'No payments found for this period',
             totalSales: 'Total Sales',
             totalPurchases: 'Total Purchases',
             grossProfit: 'Gross Profit',
@@ -311,7 +334,7 @@ const en = {
                 totalPurchases: 'Total Purchases',
                 grossProfit: 'Gross Profit',
                 totalExpenses: 'Total Expenses',
-                netProfit: 'Net Profit',
+                netProfit: 'Net Profit (After Expenses)',
                 totalDiscount: 'Total Discount',
             },
             headers: {

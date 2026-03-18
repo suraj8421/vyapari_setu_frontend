@@ -20,27 +20,23 @@ export default function Translate({ text }) {
             return;
         }
 
-        // If language is English, just show original (assuming English is source)
-        if (i18n.language === 'en') {
+        // If language starts with 'en', just show original (assuming English is source)
+        if (i18n.language && i18n.language.startsWith('en')) {
             setTranslatedText(text);
             return;
         }
 
         // 1. Check if it exists in i18n dictionary (for static demo data)
-        // We assume keys might be 'products.product_list.Text' or 'products.category_list.Text'
-        // But here we need a generic check or just assume it wasn't found if we are here.
-        // Actually, we can check if t returns a different string.
-
-        // Let's try to lookup in 'products.product_list' and 'products.category_list' first as fallback
-        const staticProduct = t(`products.product_list.${text}`, { defaultValue: null });
-        if (staticProduct && staticProduct !== text) {
-            setTranslatedText(staticProduct);
+        // Corrected keys to match en.js structure (product_list and category_list)
+        const productKey = `product_list.${text}`;
+        if (i18n.exists(productKey)) {
+            setTranslatedText(t(productKey));
             return;
         }
 
-        const staticCategory = t(`products.category_list.${text}`, { defaultValue: null });
-        if (staticCategory && staticCategory !== text) {
-            setTranslatedText(staticCategory);
+        const categoryKey = `category_list.${text}`;
+        if (i18n.exists(categoryKey)) {
+            setTranslatedText(t(categoryKey));
             return;
         }
 

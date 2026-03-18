@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saleAPI, productAPI, customerAPI } from '../services/api';
+import { getOrFetch, invalidateMany } from '../utils/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
@@ -38,27 +39,19 @@ import {
 import { resolveDateRange } from '../utils/dateUtils';
 
 // ── Sale Status Badge ──────────────────────────────────────────────
-// NEW: Status was stored in DB but never displayed in the UI.
-// Staff had no way to know if a sale had been returned.
+// Status-to-CSS mapping. Only values defined in the `SaleStatus` Prisma enum
+// are listed here. PENDING and CANCELLED are intentionally omitted — they do
+// not exist in the schema and can never be stored in the database.
 const STATUS_STYLES = {
     COMPLETED: 'bg-emerald-100 text-emerald-700',
-    PENDING: 'bg-amber-100   text-amber-700',
     RETURNED: 'bg-red-100     text-red-700',
     PARTIAL_RETURN: 'bg-orange-100  text-orange-700',
-    CANCELLED: 'bg-gray-100    text-gray-500',
 };
 
 function StatusBadge({ status }) {
     const { t } = useTranslation();
-    const style = STATUS_STYLES[status] || STATUS_STYLES.PENDING;
-    // Human-readable labels — schema enum values are ALL_CAPS
-    const labels = {
-        COMPLETED: '✅ Completed',
-        PENDING: '⏳ Pending',
-        RETURNED: '↩ Returned',
-        PARTIAL_RETURN: '↵ Part. Return',
-        CANCELLED: '✕ Cancelled',
-    };
+    // Fallback to a neutral gray style for any unrecognised status value
+    const style = STATUS_STYLES[status] || 'bg-gray-100 text-gray-500';
     return (
         <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${style}`}>
             {t(`sales.status.${status}`) || status}
@@ -232,14 +225,19 @@ export default function SalesPage() {
         setLoading(true);
         try {
             const resolved = resolveDateRange(dateRange) || {};
-            const { data } = await saleAPI.getAll({
+            const params = {
                 page,
                 limit: 15,
                 search,
                 startDate: resolved.startDate,
                 endDate: resolved.endDate,
                 paymentMethod: paymentMethod || undefined,
-            });
+            };
+
+            // PERF: Deduplicate list fetch
+            const key = `sales_list_${JSON.stringify(params)}`;
+            const data = await getOrFetch(key, () => saleAPI.getAll(params).then(r => r.data), 10000);
+
             setSales(data.data || []);
             setPagination(data.pagination);
         } catch (err) {
@@ -265,12 +263,15 @@ export default function SalesPage() {
     // ── New Sale Form ─────────────────────────────────────────────
     const openNewSale = async () => {
         try {
-            const [prodRes, custRes] = await Promise.all([
-                productAPI.getAll({ limit: 200 }),
-                customerAPI.getAll({ limit: 200 }),
+            // PERF: Use shared dataCache — avoids redundant fetches when the
+            // user opens /entry and then comes to SalesPage. Both share the same
+            // 5-minute cache keyed by 'products' and 'customers'.
+            const [prods, custs] = await Promise.all([
+                getOrFetch('products',  () => productAPI.getAll({ limit: 200 }).then(r => r.data.data || [])),
+                getOrFetch('customers', () => customerAPI.getAll({ limit: 200 }).then(r => r.data.data || [])),
             ]);
-            setProducts(prodRes.data.data || []);
-            setCustomers(custRes.data.data || []);
+            setProducts(prods);
+            setCustomers(custs);
             setSaleItems([{ productId: '', quantity: 1, unitPrice: 0, discount: 0, gstRate: 0 }]);
             setSaleForm({
                 storeId: user?.storeId || '',
@@ -331,7 +332,9 @@ export default function SalesPage() {
             await saleAPI.create(payload);
             setModalOpen(false);
             fetchSales();
-            // CHANGED: replaced alert() with toast for consistent UX
+            // Invalidate dropdown cache — a new sale may affect customer balances
+            // so we want fresh customer data next time /entry is opened.
+            invalidateMany(['products']);
             toast.success(t('sales.saleCompleted'));
         } catch (err) {
             toast.error(err.response?.data?.message || 'Error creating sale');
@@ -481,7 +484,7 @@ export default function SalesPage() {
                                     <th>{t('sales.paidAmount')}</th>
                                     <th>{t('sales.paymentMethod')}</th>
                                     {/* NEW: Status column — was missing; staff couldn't see return state */}
-                                    <th>Status</th>
+                                    <th>{t('common.status')}</th>
                                     <th>{t('sales.soldBy')}</th>
                                     {/* NEW: Actions column — return button lives here */}
                                     <th>Actions</th>
@@ -535,13 +538,13 @@ export default function SalesPage() {
                                                                    font-semibold text-xs transition-colors"
                                                     >
                                                         <HiOutlineArrowUturnLeft className="w-3.5 h-3.5" />
-                                                        Return
+                                                        {t('sales.return')}
                                                     </button>
                                                 ) : (
                                                     // Show a faded label so admin can confirm it's already returned
                                                     <span className="text-xs text-surface-400">
-                                                        {sale.status === 'RETURNED' ? 'Returned' :
-                                                            sale.status === 'CANCELLED' ? 'Cancelled' : '—'}
+                                                        {sale.status === 'RETURNED' ? t('sales.status.RETURNED') :
+                                                            sale.status === 'CANCELLED' ? t('sales.status.CANCELLED') : '—'}
                                                     </span>
                                                 )}
                                             </td>

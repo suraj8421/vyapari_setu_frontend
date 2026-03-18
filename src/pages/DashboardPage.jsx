@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { dashboardAPI, productAPI, customerAPI } from '../services/api';
+import { getOrFetch } from '../utils/dataCache';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import {
     HiOutlineShoppingCart,
@@ -40,19 +41,23 @@ export default function DashboardPage() {
 
     const fetchDashboardData = async () => {
         try {
+            // PERF: Deduplicate dashboard fetches using short-lived cache (30s)
+            // This handles StrictMode doubling and near-simultaneous mounts.
+            // DASHBOARD_TTL = 30000ms
+            const ttl = 30000;
             const [overviewRes, chartRes, topRes, lowRes, outRes] = await Promise.all([
-                dashboardAPI.getOverview(),
-                dashboardAPI.getSalesChart(30),
-                dashboardAPI.getTopProducts(8),
-                productAPI.getLowStock(),
-                customerAPI.getOutstanding(),
+                getOrFetch('dashboard_overview', () => dashboardAPI.getOverview().then(r => r.data.data), ttl),
+                getOrFetch('dashboard_chart', () => dashboardAPI.getSalesChart(30).then(r => r.data.data), ttl),
+                getOrFetch('dashboard_top', () => dashboardAPI.getTopProducts(8).then(r => r.data.data), ttl),
+                getOrFetch('low_stock', () => productAPI.getLowStock().then(r => r.data.data), ttl),
+                getOrFetch('outstanding', () => customerAPI.getOutstanding().then(r => r.data.data), ttl),
             ]);
 
-            setOverview(overviewRes.data.data);
-            setSalesChart(chartRes.data.data || []);
-            setTopProducts(topRes.data.data || []);
-            setLowStock(lowRes.data.data || []);
-            setOutstanding(outRes.data.data || []);
+            setOverview(overviewRes);
+            setSalesChart(chartRes || []);
+            setTopProducts(topRes || []);
+            setLowStock(lowRes || []);
+            setOutstanding(outRes || []);
         } catch (err) {
             console.error('Dashboard fetch error:', err);
         } finally {
