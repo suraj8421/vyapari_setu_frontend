@@ -14,7 +14,7 @@
 //  5. Quick link to ProductsPage for adding stock via a new purchase
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -33,9 +33,11 @@ import {
     HiOutlineArrowDownTray,
     HiOutlineClock,
     HiOutlineQrCode,
+    HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import Modal from '../components/common/Modal';
-import ScannerModal from '../components/common/ScannerModal';
+import SmartScanModal from '../components/common/SmartScanModal';
+import { HiOutlineSparkles } from 'react-icons/hi2';
 import { productAPI } from '../services/api';
 import { getOrFetch, invalidate } from '../utils/dataCache';
 
@@ -75,16 +77,34 @@ const STATUS_CONFIG = {
 };
 
 // ── Summary Stat Card ────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, sub, color, bg }) {
+function StatCard({ icon: Icon, label, value, sub, color, bg, onClick, active }) {
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+        <div 
+            onClick={onClick}
+            className={`bg-white rounded-2xl border transition-all duration-300 p-5 flex items-center gap-4 group
+                       ${onClick ? 'cursor-pointer hover:shadow-xl active:scale-95' : ''}
+                       ${active 
+                         ? 'border-primary-500 ring-2 ring-primary-500/10 shadow-lg' 
+                         : 'border-gray-100 shadow-sm hover:border-gray-200'}
+                       `}
+        >
+            <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center shrink-0 transition-transform duration-300
+                            ${onClick ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`}>
                 <Icon className={`w-6 h-6 ${color}`} />
             </div>
-            <div>
-                <p className="text-xs text-surface-500 font-medium uppercase tracking-wider">{label}</p>
-                <p className={`text-2xl font-extrabold ${color} mt-0.5`}>{value}</p>
-                {sub && <p className="text-xs text-surface-400 mt-0.5">{sub}</p>}
+            <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-surface-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                    {label}
+                    {onClick && (
+                        <HiOutlineArrowRight className={`w-3 h-3 transition-all duration-300 
+                                                        ${active ? 'opacity-100 translate-x-1 text-primary-500' : 'opacity-0 group-hover:opacity-100 group-hover:translate-x-1'}`} />
+                    )}
+                </p>
+                <div className="flex items-baseline gap-2">
+                    <p className={`text-2xl font-black ${color} tracking-tight`}>{value}</p>
+                    {active && <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />}
+                </div>
+                {sub && <p className="text-[11px] text-surface-500 mt-0.5 truncate">{sub}</p>}
             </div>
         </div>
     );
@@ -310,9 +330,10 @@ export default function InventoryPage() {
     const navigate = useNavigate();
 
     // ── Filter & View State ────────────────────────────────────────
-    const [search, setSearch] = useState('');
-    const [category, setCategory] = useState('');
-    const [statusFilter, setStatus] = useState('');  // 'LOW' | 'OUT_OF_STOCK' | ''
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [search, setSearch] = useState(searchParams.get('search') || '');
+    const [category, setCategory] = useState(searchParams.get('category') || '');
+    const [statusFilter, setStatus] = useState(searchParams.get('filter') === 'low-stock' ? 'LOW' : (searchParams.get('status') || ''));  // 'LOW' | 'OUT_OF_STOCK' | ''
     const [categories, setCategories] = useState([]);
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 20;
@@ -373,8 +394,17 @@ export default function InventoryPage() {
     }, [page, search, category]);
 
     useEffect(() => {
+        // Sync URL params
+        const params = {};
+        if (page > 1) params.page = page;
+        if (search) params.search = search;
+        if (category) params.category = category;
+        if (statusFilter === 'LOW') params.filter = 'low-stock';
+        else if (statusFilter) params.status = statusFilter;
+        setSearchParams(params, { replace: true });
+
         fetchInventory();
-    }, [fetchInventory]);
+    }, [fetchInventory, search, category, statusFilter, page]);
 
     // ── Update local min-stock level after inline edit ─────────────
     // Called by MinStockEditor after a successful API call.
@@ -445,11 +475,11 @@ export default function InventoryPage() {
                 <div className="flex gap-3">
                     <button
                         onClick={() => setScannerOpen(true)}
-                        className="p-2.5 rounded-xl border border-primary-200 bg-primary-50 text-primary-700
+                        className="flex items-center gap-2 p-2.5 rounded-xl border border-primary-200 bg-primary-50 text-primary-700
                                    hover:bg-primary-100 transition-colors"
-                        title="Smart Scanner"
+                        title="Smart Scan"
                     >
-                        <HiOutlineQrCode className="w-5 h-5" />
+                        <HiOutlineSparkles className="w-5 h-5 text-primary-500" />
                     </button>
                     {/* Refresh */}
                     <button
@@ -493,6 +523,8 @@ export default function InventoryPage() {
                     sub={t('inventory.allCategoriesSub')}
                     color="text-primary-600"
                     bg="bg-primary-50"
+                    onClick={() => { setStatus(''); setPage(1); }}
+                    active={statusFilter === ''}
                 />
                 <StatCard
                     icon={HiOutlineExclamationTriangle}
@@ -501,6 +533,8 @@ export default function InventoryPage() {
                     sub={t('inventory.lowStockSub')}
                     color="text-amber-600"
                     bg="bg-amber-50"
+                    onClick={() => { setStatus('LOW'); setPage(1); }}
+                    active={statusFilter === 'LOW'}
                 />
                 <StatCard
                     icon={HiOutlineXCircle}
@@ -509,6 +543,8 @@ export default function InventoryPage() {
                     sub={t('inventory.outOfStockSub')}
                     color="text-red-600"
                     bg="bg-red-50"
+                    onClick={() => { setStatus('OUT_OF_STOCK'); setPage(1); }}
+                    active={statusFilter === 'OUT_OF_STOCK'}
                 />
             </div>
 
@@ -763,13 +799,14 @@ export default function InventoryPage() {
                 product={historyTarget}
             />
 
-            {/* Smart Scanner */}
-            <ScannerModal
+            {/* Unified Smart Scan */}
+            <SmartScanModal
                 isOpen={scannerOpen}
                 onClose={() => setScannerOpen(false)}
-                onAction={(action, payload) => {
+                contextType="inventory"
+                onScanComplete={(data) => {
                     // Navigate to products page to perform edits/creations based on scan
-                    navigate('/products');
+                    navigate('/products', { state: { scanData: data } });
                 }}
             />
         </div>

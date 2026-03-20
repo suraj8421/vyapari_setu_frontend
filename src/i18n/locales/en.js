@@ -156,6 +156,18 @@ const en = {
             b2bInvoices: 'B2B Invoices',
         },
 
+        // ─── Stores ─────────────────────────────
+        stores: {
+            title: 'Stores',
+            addStore: 'Add Store',
+            editStore: 'Edit Store',
+            storeName: 'Store Name',
+            city: 'City',
+            state: 'State',
+            pincode: 'PIN Code',
+            gstNumber: 'GST Number',
+        },
+
         // ─── Products ───────────────────────────
         products: {
             title: 'Products',
@@ -283,7 +295,7 @@ const en = {
             viewLedger: 'View Ledger',
             // Khata / Ledger modal keys
             balance: 'Outstanding Balance',
-            khataTtle: 'Khata — {{name}}',
+            khataTitle: 'Khata',
             viewKhata: 'View Khata',
             recordPayment: 'Record Payment',
             creditEntry: 'Credit (Sale)',

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { b2bAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Network, Search, UserPlus, CheckCircle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function NetworkPage() {
     const [activeTab, setActiveTab] = useState('connections');
@@ -9,6 +10,7 @@ export default function NetworkPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (activeTab === 'connections') {
@@ -123,10 +125,14 @@ export default function NetworkPage() {
                         {!loading && connections.length > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {connections.map(conn => (
-                                    <div key={conn.id} className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                                    <div 
+                                        key={conn.id} 
+                                        onClick={() => navigate(`/b2b/store/${conn.partner.id}`)}
+                                        className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md group"
+                                    >
                                         <div className="flex items-start justify-between">
                                             <div>
-                                                <h3 className="font-semibold text-gray-900 dark:text-white">{conn.partner.name}</h3>
+                                                <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors">{conn.partner.name}</h3>
                                                 <p className="text-xs text-gray-500 mt-1">{conn.partner.city || 'No city'} • GST: {conn.partner.gstNumber || 'N/A'}</p>
                                             </div>
                                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -142,7 +148,7 @@ export default function NetworkPage() {
                                             </span>
                                             {conn.status === 'PENDING' && (
                                                 <button
-                                                    onClick={() => acceptConnection(conn.id)}
+                                                    onClick={(e) => { e.stopPropagation(); acceptConnection(conn.id); }}
                                                     className="px-3 py-1 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700"
                                                 >
                                                     Accept

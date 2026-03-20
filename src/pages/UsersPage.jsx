@@ -5,7 +5,8 @@ import { getOrFetch } from '../utils/dataCache';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineSparkles } from 'react-icons/hi2';
+import SmartScanModal from '../components/common/SmartScanModal';
 
 export default function UsersPage() {
     const { t } = useTranslation();
@@ -16,6 +17,7 @@ export default function UsersPage() {
     const [stores, setStores] = useState([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const emptyForm = { firstName: '', lastName: '', email: '', password: '', role: 'STORE_USER', storeId: '' };
     const [form, setForm] = useState(emptyForm);
@@ -60,8 +62,17 @@ export default function UsersPage() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-surface-100">{t('users.title')}</h1>
-                <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('users.addUser')}</button>
+                <h1 className="text-2xl font-bold text-surface-900">{t('users.title')}</h1>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        className="btn-ghost text-primary-400 border border-primary-400/30 flex items-center gap-2"
+                    >
+                        <HiOutlineSparkles className="w-5 h-5" />
+                        Smart Scan
+                    </button>
+                    <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('users.addUser')}</button>
+                </div>
             </div>
             <div className="glass-card overflow-hidden">
                 {loading ? <LoadingSpinner /> : users.length === 0 ? <div className="text-center py-16 text-surface-500">{t('common.noData')}</div> : (
@@ -97,6 +108,25 @@ export default function UsersPage() {
                     </div>
                 </form>
             </Modal>
+
+            <SmartScanModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                contextType="user"
+                onScanComplete={(data) => {
+                    const [first, ...last] = (data.name || '').split(' ');
+                    setForm(prev => ({
+                        ...prev,
+                        firstName: first || prev.firstName,
+                        lastName: last.join(' ') || prev.lastName,
+                        phone: data.phone || prev.phone,
+                        email: data.email || prev.email
+                    }));
+                    setIsScannerOpen(false);
+                    setModalOpen(true);
+                    toast.success("User info extracted! Please set their role.");
+                }}
+            />
         </div>
     );
 }

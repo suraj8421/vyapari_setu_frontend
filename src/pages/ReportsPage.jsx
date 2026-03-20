@@ -112,7 +112,7 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <h1 className="text-2xl font-bold text-surface-100">{t('reports.title')}</h1>
+            <h1 className="text-2xl font-bold text-surface-900">{t('reports.title')}</h1>
             <div className="glass-card p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
                     <div className="sm:col-span-3">

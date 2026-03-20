@@ -186,15 +186,41 @@ export default function EntrySummaryPanel({
                 </button>
             </div>
 
-            {/* ── Staff Approval Notice ─────────────────────────── */}
-            <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/30 flex items-start gap-3">
-                <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <div>
-                    <p className="text-xs font-bold text-amber-900">Staff Approval Notice</p>
-                    <p className="text-[10px] text-amber-800 mt-1 leading-relaxed opacity-80">
-                        Entries are saved immediately. Any edits to existing transactions 
-                        go to the admin approval queue and will not take effect until approved.
-                    </p>
+            {/* ── ERP Smart Alerts ─────────────────────────────── */}
+            <div className="space-y-3">
+                {totals.stockWarnings && (
+                    <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3 animate-pulse">
+                        <ExclamationTriangleIcon className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-xs font-bold text-red-900 leading-none">Stock Shortage Detected</p>
+                            <p className="text-[10px] text-red-700 mt-1 leading-relaxed opacity-80">
+                                One or more items in this order exceed current warehouse availability.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {totals.creditLimitExceeded && (
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+                        <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-xs font-bold text-amber-900 leading-none">Credit Limit Warning</p>
+                            <p className="text-[10px] text-amber-800 mt-1 leading-relaxed opacity-80">
+                                This sale will push the customer's balance above their approved credit limit.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Staff Approval Notice ─────────────────────────── */}
+                <div className="p-4 rounded-2xl bg-surface-50 border border-surface-200/50 flex items-start gap-3">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-surface-400 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-xs font-bold text-surface-900 leading-none">Staff Approval Notice</p>
+                        <p className="text-[10px] text-surface-500 mt-1 leading-relaxed opacity-80">
+                            Entries are saved immediately. Edits to existing transactions go to the admin approval queue.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

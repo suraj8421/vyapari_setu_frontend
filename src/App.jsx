@@ -21,6 +21,7 @@ import ExpensesPage from './pages/ExpensesPage';
 import InventoryPage from './pages/InventoryPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
 import NetworkPage from './pages/B2B/NetworkPage';
+import StoreProfilePage from './pages/B2B/StoreProfilePage';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -43,8 +44,10 @@ export default function App() {
                                 <Route path="sales" element={<SalesPage />} />
                                 <Route path="purchases" element={<ProtectedRoute adminOnly><PurchasesPage /></ProtectedRoute>} />
                                 <Route path="b2b/network" element={<NetworkPage />} />
+                                <Route path="b2b/store/:id" element={<StoreProfilePage />} />
                                 <Route path="b2b/invoices" element={<Navigate to="/approvals" replace />} />
                                 <Route path="customers" element={<CustomersPage />} />
+                                <Route path="ledger" element={<Navigate to="/customers?filter=pending" replace />} />
                                 <Route path="suppliers" element={<ProtectedRoute adminOnly><SuppliersPage /></ProtectedRoute>} />
                                 <Route path="stores" element={<ProtectedRoute adminOnly><StoresPage /></ProtectedRoute>} />
                                 <Route path="users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />

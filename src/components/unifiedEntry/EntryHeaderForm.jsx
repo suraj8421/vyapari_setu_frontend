@@ -62,6 +62,24 @@ export default function EntryHeaderForm({ formData, type, customers, suppliers, 
                         placeholder={`Search ${partyLabel}...`}
                         className="input pl-10 h-12 rounded-xl w-full"
                     />
+                    
+                    {/* Party Info Badge */}
+                    {formData.partyId && (
+                        <div className="absolute -bottom-6 left-0 flex items-center gap-3 text-[10px] font-bold">
+                            {(() => {
+                                const p = partyList.find(x => x.id === formData.partyId);
+                                if (!p) return null;
+                                return (
+                                    <>
+                                        <span className="text-surface-400 uppercase tracking-tighter">Balance: <span className="text-surface-900">₹{Number(p.balance || 0).toLocaleString()}</span></span>
+                                        {Number(p.creditLimit) > 0 && (
+                                            <span className="text-surface-400 uppercase tracking-tighter">Limit: <span className="text-primary-600">₹{Number(p.creditLimit).toLocaleString()}</span></span>
+                                        )}
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    )}
                 </div>
             </div>
 

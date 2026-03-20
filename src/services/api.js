@@ -210,6 +210,11 @@ export const b2bAPI = {
     getNotifications: () => api.get('/b2b/notifications'),
     markAsRead: (id) => api.post(`/b2b/notifications/${id}/read`),
     markAllAsRead: () => api.post('/b2b/notifications/mark-all-read'),
+
+    // Store Profile & Ordering
+    getStoreDetails: (id) => api.get(`/b2b/store/${id}`),
+    getStoreProducts: (id) => api.get(`/b2b/store/${id}/products`),
+    placeOrder: (data) => api.post('/b2b/place-order', data),
 };
 
 // Unified Approval Notification API
