@@ -12,8 +12,6 @@ import {
     HiOutlineCube,
     HiOutlineShoppingCart,
     HiOutlineTruck,
-    HiOutlineUsers,
-    HiOutlineBuildingStorefront,
     HiOutlineDocumentChartBar,
     HiOutlineArrowRightOnRectangle,
     HiOutlineCurrencyRupee,
@@ -43,8 +41,7 @@ export default function Sidebar({ isOpen, onClose }) {
         // NEW: Expenses page — all users can view; was missing from nav entirely
         { to: '/expenses', icon: HiOutlineReceiptRefund, label: t('nav.expenses') },
         { to: '/suppliers', icon: HiOutlineClipboardDocumentList, label: t('nav.suppliers'), adminOnly: true },
-        { to: '/stores', icon: HiOutlineBuildingStorefront, label: t('nav.stores'), adminOnly: true },
-        { to: '/users', icon: HiOutlineUserGroup, label: t('nav.users'), adminOnly: true },
+
         { to: '/reports', icon: HiOutlineDocumentChartBar, label: t('nav.reports'), adminOnly: true },
         // NEW: Approvals link — only for admins, shows live pending count badge
         {

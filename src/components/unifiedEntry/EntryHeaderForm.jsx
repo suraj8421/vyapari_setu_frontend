@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import AutocompleteInput from '../common/AutocompleteInput';
 
-export default function EntryHeaderForm({ formData, type, customers, suppliers, onChange }) {
+export default function EntryHeaderForm({ formData, type, customers, suppliers, onChange, onPartySelect }) {
     const { t } = useTranslation();
 
     // Choose the correct list and label depending on entry type
@@ -53,11 +53,7 @@ export default function EntryHeaderForm({ formData, type, customers, suppliers, 
                     <AutocompleteInput 
                         value={formData.partyName || ''}
                         onChange={(val) => onChange({ target: { name: 'partyName', value: val } })}
-                        onSelect={(item) => {
-                            onChange({ target: { name: 'partyId', value: item.id } });
-                            onChange({ target: { name: 'partyName', value: item.name } });
-                            if (item.phone) onChange({ target: { name: 'mobile', value: item.phone } });
-                        }}
+                        onSelect={onPartySelect}
                         endpoint={isSaleOrPayment ? '/customers' : '/suppliers'}
                         placeholder={`Search ${partyLabel}...`}
                         className="input pl-10 h-12 rounded-xl w-full"

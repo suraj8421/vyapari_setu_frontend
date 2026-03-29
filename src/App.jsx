@@ -12,8 +12,7 @@ import SalesPage from './pages/SalesPage';
 import PurchasesPage from './pages/PurchasesPage';
 import CustomersPage from './pages/CustomersPage';
 import SuppliersPage from './pages/SuppliersPage';
-import StoresPage from './pages/StoresPage';
-import UsersPage from './pages/UsersPage';
+
 import ReportsPage from './pages/ReportsPage';
 import UnifiedEntryPage from './pages/UnifiedEntryPage';
 import ApprovalsPage from './pages/ApprovalsPage';
@@ -62,8 +61,7 @@ export default function App() {
                                 <Route path="customers" element={<CustomersPage />} />
                                 <Route path="ledger" element={<Navigate to="/customers?filter=pending" replace />} />
                                 <Route path="suppliers" element={<ProtectedRoute adminOnly><SuppliersPage /></ProtectedRoute>} />
-                                <Route path="stores" element={<ProtectedRoute adminOnly><StoresPage /></ProtectedRoute>} />
-                                <Route path="users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
+
                                 <Route path="reports" element={<ProtectedRoute adminOnly><ReportsPage /></ProtectedRoute>} />
                                 <Route path="entry" element={<UnifiedEntryPage />} />
                                 <Route path="approvals" element={<ProtectedRoute adminOnly><ApprovalsPage /></ProtectedRoute>} />

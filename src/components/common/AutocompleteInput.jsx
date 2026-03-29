@@ -99,7 +99,15 @@ export default function AutocompleteInput({
                             </div>
                         ))
                     ) : (
-                        <div className="p-3 text-sm text-surface-500 text-center">No results found</div>
+                        <div 
+                            className="p-3 bg-primary-50 hover:bg-primary-100 cursor-pointer text-sm text-primary-600 font-bold text-center border-t border-primary-100"
+                            onClick={() => {
+                                onSelect({ id: 'NEW', name: value });
+                                setIsOpen(false);
+                            }}
+                        >
+                            + Add "<span className="italic">{value}</span>" as New
+                        </div>
                     )}
                 </div>
             )}

@@ -603,47 +603,51 @@ export default function SalesPage() {
                                 <HiOutlinePlus className="w-4 h-4" /> {t('sales.addItem')}
                             </button>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {saleItems.map((item, idx) => (
-                                <div key={idx} className="grid grid-cols-12 gap-2 items-end p-3 rounded-xl bg-surface-800/30">
-                                    <div className="col-span-4">
-                                        <label className="text-xs text-surface-500">{t('sales.selectProduct')}</label>
-                                        <select className="select-field py-2" value={item.productId}
+                                <div key={idx} className="p-4 rounded-2xl bg-surface-50 border border-gray-100 shadow-sm space-y-3 sm:space-y-0 sm:grid sm:grid-cols-12 sm:gap-3 sm:items-end">
+                                    <div className="sm:col-span-4">
+                                        <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-1">{t('sales.selectProduct')}</label>
+                                        <select className="select-field py-2.5" value={item.productId}
                                             onChange={e => updateItem(idx, 'productId', e.target.value)} required>
-                                            <option value="">--</option>
+                                            <option value="">-- {t('sales.selectProduct')} --</option>
                                             {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)}
                                         </select>
                                     </div>
-                                    <div className="col-span-2">
-                                        <label className="text-xs text-surface-500">{t('common.quantity')}</label>
-                                        <input type="number" min="1" className="input-field py-2" value={item.quantity}
-                                            onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                                    <div className="grid grid-cols-2 sm:contents gap-3">
+                                        <div className="sm:col-span-2">
+                                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-1">{t('common.quantity')}</label>
+                                            <input type="number" min="1" className="input-field py-2.5" value={item.quantity}
+                                                onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-1">{t('common.price')}</label>
+                                            <input type="number" step="0.01" className="input-field py-2.5" value={item.unitPrice}
+                                                onChange={e => updateItem(idx, 'unitPrice', e.target.value)} />
+                                        </div>
                                     </div>
-                                    <div className="col-span-2">
-                                        <label className="text-xs text-surface-500">{t('common.price')}</label>
-                                        <input type="number" step="0.01" className="input-field py-2" value={item.unitPrice}
-                                            onChange={e => updateItem(idx, 'unitPrice', e.target.value)} />
+                                    <div className="grid grid-cols-2 sm:contents gap-3">
+                                        <div className="sm:col-span-2">
+                                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-1">{t('sales.discount')}</label>
+                                            <input type="number" className="input-field py-2.5" value={item.discount}
+                                                onChange={e => updateItem(idx, 'discount', e.target.value)} />
+                                        </div>
+                                        <div className="sm:col-span-1">
+                                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest block mb-1">{t('products.gstRate')}</label>
+                                            <select className="select-field py-2.5 px-2" value={item.gstRate}
+                                                onChange={e => updateItem(idx, 'gstRate', e.target.value)}>
+                                                <option value="0">0%</option>
+                                                <option value="5">5%</option>
+                                                <option value="12">12%</option>
+                                                <option value="18">18%</option>
+                                                <option value="28">28%</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div className="col-span-2">
-                                        <label className="text-xs text-surface-500">{t('sales.discount')}</label>
-                                        <input type="number" className="input-field py-2" value={item.discount}
-                                            onChange={e => updateItem(idx, 'discount', e.target.value)} />
-                                    </div>
-                                    <div className="col-span-1">
-                                        <label className="text-xs text-surface-500">{t('products.gstRate')}</label>
-                                        <select className="select-field py-2" value={item.gstRate}
-                                            onChange={e => updateItem(idx, 'gstRate', e.target.value)}>
-                                            <option value="0">0%</option>
-                                            <option value="5">5%</option>
-                                            <option value="12">12%</option>
-                                            <option value="18">18%</option>
-                                            <option value="28">28%</option>
-                                        </select>
-                                    </div>
-                                    <div className="col-span-1">
+                                    <div className="sm:col-span-1 flex justify-end">
                                         <button type="button" onClick={() => removeItem(idx)}
-                                            className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
-                                            <HiOutlineTrash className="w-4 h-4" />
+                                            className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100">
+                                            <HiOutlineTrash className="w-5 h-5" />
                                         </button>
                                     </div>
                                 </div>
@@ -652,23 +656,27 @@ export default function SalesPage() {
                     </div>
 
                     {/* Totals */}
-                    <div className="flex flex-col items-end p-4 rounded-xl bg-surface-800/30 space-y-2">
-                        <div className="flex gap-4">
-                            <span className="text-surface-400">{t('sales.discount')}:</span>
-                            <input type="number" className="input-field py-1 w-32 text-right"
-                                value={saleForm.discount}
-                                onChange={e => setSaleForm({ ...saleForm, discount: e.target.value })} />
-                        </div>
-                        <div className="flex gap-4">
-                            <span className="text-surface-400">{t('sales.totalAmount')}:</span>
-                            <span className="text-xl font-bold text-emerald-400">{formatCurrency(calcTotal())}</span>
-                        </div>
-                        <div className="flex gap-4">
-                            <span className="text-surface-400">{t('sales.paidAmount')}:</span>
-                            <input type="number" step="0.01" className="input-field py-1 w-32 text-right"
-                                value={saleForm.paidAmount}
-                                onChange={e => setSaleForm({ ...saleForm, paidAmount: e.target.value })}
-                                placeholder={String(calcTotal())} />
+                    <div className="p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-100 shadow-inner space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-4 flex-1">
+                                <div className="flex items-center justify-between sm:justify-start gap-4">
+                                    <span className="text-xs font-black text-surface-400 uppercase tracking-widest">{t('sales.discount')}:</span>
+                                    <input type="number" className="input-field py-2 w-32 text-right font-bold"
+                                        value={saleForm.discount}
+                                        onChange={e => setSaleForm({ ...saleForm, discount: e.target.value })} />
+                                </div>
+                                <div className="flex items-center justify-between sm:justify-start gap-4">
+                                    <span className="text-xs font-black text-surface-400 uppercase tracking-widest">{t('sales.paidAmount')}:</span>
+                                    <input type="number" step="0.01" className="input-field py-2 w-32 text-right font-bold text-emerald-600"
+                                        value={saleForm.paidAmount}
+                                        onChange={e => setSaleForm({ ...saleForm, paidAmount: e.target.value })}
+                                        placeholder={String(calcTotal())} />
+                                </div>
+                            </div>
+                            <div className="pt-4 sm:pt-0 sm:border-l sm:pl-8 border-gray-100 flex flex-col items-center sm:items-end">
+                                <span className="text-xs font-black text-surface-400 uppercase tracking-widest mb-1">{t('sales.totalAmount')}</span>
+                                <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">{formatCurrency(calcTotal())}</span>
+                            </div>
                         </div>
                     </div>
 

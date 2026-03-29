@@ -1,5 +1,5 @@
 // ============================================
-// useUnifiedEntry — Custom hook
+// useUnifiedEntry — Custom hook (Updated with Stores state)
 // ============================================
 // REFACTOR: All state, data-fetching, and event handler logic that previously
 // lived directly inside UnifiedEntryPage (making it 580+ lines) has been
@@ -35,6 +35,7 @@ const BLANK_ITEM = {
 // Initial form state — centralised here so it's easy to reset
 const INITIAL_FORM = {
     date: new Date().toISOString().split('T')[0],
+    storeId: '',
     partyId: '',
     mobile: '',
     deliveryDate: '',
@@ -73,6 +74,7 @@ export function useUnifiedEntry() {
     const [customers, setCustomers] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
+    const [stores, setStores] = useState([]);
 
     // REFACTOR: useRef keeps a stable reference to products so handleItemChange
     // can always read the latest list without needing it in its dependency array,
@@ -118,7 +120,21 @@ export function useUnifiedEntry() {
         } finally {
             setDataLoading(false);
         }
-    }, []);
+
+        // NEW: If User is Super Admin (no fixed store), they need the store list
+        // to define the context for entries / creations.
+        if (user?.role === 'ADMIN' && !user?.storeId) {
+            getOrFetch('stores', () => api.get('/stores').then(r => r.data.data || [])).then(storesList => {
+                setStores(storesList);
+                // AUTO-SELECT FIRST STORE for Admin consistency
+                if (storesList.length > 0) {
+                    setFormData(prev => ({ ...prev, storeId: storesList[0].id }));
+                }
+            }).catch(err => {
+                console.warn('[useUnifiedEntry] fetchStores error:', err.message);
+            });
+        }
+    }, [user?.role, user?.storeId]);
 
     // Fetch audit history for the record being edited.
     // Only runs when `id` is present in the URL (edit mode).
@@ -163,6 +179,69 @@ export function useUnifiedEntry() {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     }, []);
+
+    /**
+     * Handle Party (Customer/Supplier) Selection
+     * NEW: Supports quick-creating a customer if it doesn't exist
+     */
+    const handlePartySelect = useCallback(async (item) => {
+        if (!item) return;
+
+        // "Add as New" Logic
+        if (item.id === 'NEW') {
+            const isSale = type === 'SALE' || type === 'PAYMENT';
+            const endpoint = isSale ? '/customers' : '/suppliers';
+            const label = isSale ? 'Customer' : 'Supplier';
+
+            // SAFETY: Super Admin context (Auto-populated in fetchStores)
+            const targetStoreId = user?.storeId || formData.storeId;
+
+            if (!targetStoreId) {
+                toast.error('❌ System Error: No target business context found. Please ensure you have at least one Store created.', { duration: 5000 });
+                return;
+            }
+
+            console.log('[useUnifiedEntry] QuickCreate Payload:', { name: item.name, storeId: targetStoreId, endpoint });
+
+            try {
+                setLoading(true);
+                const res = await api.post(endpoint, { 
+                    name: item.name, 
+                    storeId: targetStoreId 
+                });
+                
+                const newEntity = res.data.data;
+                
+                setFormData(prev => ({
+                    ...prev,
+                    partyId: newEntity.id || '',
+                    partyName: newEntity.name || '',
+                    mobile: newEntity.phone || '',
+                }));
+
+                // Update local lists so the new entity appears in any subsequent filtered lists
+                if (isSale) setCustomers(prev => [newEntity, ...prev]);
+                else setSuppliers(prev => [newEntity, ...prev]);
+
+                toast.success(`✅ Created new ${label}: ${newEntity.name}`);
+            } catch (err) {
+                const msg = err.response?.data?.message || "Could not save. Check console for details.";
+                toast.error(msg);
+                console.error('[useUnifiedEntry] QuickCreate error:', err.response?.data || err);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Normal Selection
+            setFormData(prev => ({
+                ...prev,
+                partyId: item.id || '',
+                partyName: item.name || '',
+                mobile: item.phone || '',
+            }));
+        }
+    }, [type, user?.storeId, formData.storeId]);
+
 
     // Toggle a boolean option (updateStock, updateLoan, etc.)
     const handleOptionChange = useCallback((optionName) => {
@@ -534,6 +613,7 @@ export function useUnifiedEntry() {
 
         // Handlers
         handleInputChange,
+        handlePartySelect,
         handleOptionChange,
         addItem,
         removeItem,
@@ -543,5 +623,6 @@ export function useUnifiedEntry() {
         handlePaymentChange,
         handleSubmit,
         handleScannerAction,
+        stores,
     };
 }
