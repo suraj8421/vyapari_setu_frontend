@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { HiOutlineBars3, HiOutlineGlobeAlt, HiOutlineBell } from 'react-icons/hi2';
 import { useState, useRef, useEffect } from 'react';
 
-export default function Header({ onMenuToggle }) {
+export default function Header({ onMenuToggle, isSuperAdmin = false }) {
     const { t, i18n } = useTranslation();
     const { user } = useAuth();
     const { unreadCount } = useNotification();
@@ -54,7 +54,9 @@ export default function Header({ onMenuToggle }) {
                     </button>
                     <div>
                         <h2 className="text-lg font-semibold text-surface-900">
-                            {t('dashboard.welcomeBack')}, <span className="text-gradient">{user?.firstName}</span>
+                            {isSuperAdmin ? 'Super Admin Portal' : (
+                                <>{t('dashboard.welcomeBack')}, <span className="text-gradient">{user?.firstName}</span></>
+                            )}
                         </h2>
                     </div>
                 </div>
@@ -95,20 +97,22 @@ export default function Header({ onMenuToggle }) {
                     </div>
 
                     {/* Single Notification Bell — navigates to /approvals */}
-                    <button
-                        onClick={() => navigate('/approvals')}
-                        className="relative p-2 rounded-xl text-surface-500 hover:text-surface-900 hover:bg-gray-100 transition-colors"
-                        id="notifications-btn"
-                        aria-label="Notifications"
-                        title="Approvals & Notifications"
-                    >
-                        <HiOutlineBell className="w-5 h-5" />
-                        {unreadCount > 0 && (
-                            <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center animate-pulse">
-                                {unreadCount > 9 ? '9+' : unreadCount}
-                            </span>
-                        )}
-                    </button>
+                    {!isSuperAdmin && (
+                        <button
+                            onClick={() => navigate('/approvals')}
+                            className="relative p-2 rounded-xl text-surface-500 hover:text-surface-900 hover:bg-gray-100 transition-colors"
+                            id="notifications-btn"
+                            aria-label="Notifications"
+                            title="Approvals & Notifications"
+                        >
+                            <HiOutlineBell className="w-5 h-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center animate-pulse">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
         </header>

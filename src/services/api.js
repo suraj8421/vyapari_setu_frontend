@@ -51,10 +51,13 @@ api.interceptors.response.use(
                     return api(originalRequest);
                 }
             } catch (refreshError) {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-                window.location.href = '/login';
+                // Do not forcefully log out if using the Mock Super Admin
+                if (localStorage.getItem('accessToken') !== 'mock-super-token') {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                }
                 return Promise.reject(refreshError);
             }
         }
@@ -226,6 +229,36 @@ export const approvalAPI = {
     lock: (id) => api.post(`/approvals/${id}/lock`),
     unlock: (id) => api.post(`/approvals/${id}/unlock`),
     bulkAction: (ids, action) => api.post(`/approvals/bulk-action`, { ids, action }),
+};
+
+// Plan API
+export const planAPI = {
+    getAll: () => api.get('/plans'),
+    getAllAdmin: () => api.get('/plans/admin'),
+    create: (data) => api.post('/plans', data),
+    update: (id, data) => api.put(`/plans/${id}`, data),
+    delete: (id) => api.delete(`/plans/${id}`),
+};
+
+// Super Admin Dashboard
+export const saDashboardAPI = {
+    getStats: (range) => api.get('/sa-dashboard/stats', { params: { range } }),
+    getGrowth: () => api.get('/sa-dashboard/growth'),
+};
+
+export const saLeadsAPI = {
+    getAll: (params) => api.get('/sa-leads', { params }),
+    create: (data) => api.post('/sa-leads', data),
+    update: (id, data) => api.put(`/sa-leads/${id}`, data),
+    delete: (id) => api.delete(`/sa-leads/${id}`),
+    export: () => api.get('/sa-leads/export', { responseType: 'blob' }),
+};
+
+export const saReportsAPI = {
+    exportClients: () => api.get('/sa-users/export', { responseType: 'blob' }),
+    exportEmployees: () => api.get('/employees/export', { responseType: 'blob' }),
+    exportPayments: () => api.get('/sa-users/payments/export', { responseType: 'blob' }),
+    exportSubscriptions: () => api.get('/sa-users/subscriptions/export', { responseType: 'blob' }),
 };
 
 export default api;

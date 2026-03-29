@@ -76,7 +76,7 @@ export default function PurchasesPage() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-surface-100">{t('purchases.title')}</h1>
+                <h1 className="text-2xl font-bold text-surface-900">{t('purchases.title')}</h1>
                 <button onClick={openNew} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('purchases.newPurchase')}</button>
             </div>
             <div className="glass-card overflow-hidden">

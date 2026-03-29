@@ -112,7 +112,7 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <h1 className="text-2xl font-bold text-surface-100">{t('reports.title')}</h1>
+            <h1 className="text-2xl font-bold text-surface-900">{t('reports.title')}</h1>
             <div className="glass-card p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
                     <div className="sm:col-span-3">
@@ -195,7 +195,7 @@ export default function ReportsPage() {
             {payments.length > 0 && reportType === 'payments' && (
                 <div className="glass-card overflow-hidden animate-fade-in">
                     <div className="p-4 border-b border-surface-700 bg-surface-800/50 flex items-center justify-between">
-                        <h3 className="font-semibold text-surface-100 flex items-center gap-2">
+                        <h3 className="font-semibold text-surface-900 flex items-center gap-2">
                             <HiOutlineBanknotes className="w-5 h-5 text-emerald-400" />
                             {t('reports.paymentsReceived')}
                         </h3>

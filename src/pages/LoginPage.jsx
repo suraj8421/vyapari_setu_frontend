@@ -19,8 +19,12 @@ export default function LoginPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await login(form.email, form.password);
-            navigate('/dashboard');
+            const userData = await login(form.email, form.password);
+            if (userData?.role === 'SUPERADMIN') {
+                navigate('/superadmin');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (_) {
             // Error handled by context
         }
@@ -41,7 +45,7 @@ export default function LoginPage() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
                           bg-gradient-to-br from-primary-500 to-accent-500 
                           shadow-2xl shadow-primary-500/30 mb-4">
-                        <span className="text-3xl font-bold text-white">K</span>
+                        <span className="text-3xl font-bold text-white">V</span>
                     </div>
                     <h1 className="text-3xl font-bold text-gradient mb-1">{t('common.appName')}</h1>
                     <p className="text-surface-500 text-sm">{t('common.tagline')}</p>
@@ -149,6 +153,9 @@ export default function LoginPage() {
                 <div className="mt-4 p-3 rounded-xl bg-surface-800/50 border border-surface-700/50 text-center">
                     <p className="text-xs text-surface-500">Demo Credentials</p>
                     <p className="text-xs text-surface-400 mt-1">
+                        Super Admin: <span className="text-primary-400">super@vyaparisetu.com</span> / <span className="text-primary-400">admin123</span>
+                    </p>
+                    <p className="text-xs text-surface-400">
                         Admin: <span className="text-primary-400">admin@vyaparisetu.com</span> / <span className="text-primary-400">admin123</span>
                     </p>
                     <p className="text-xs text-surface-400">

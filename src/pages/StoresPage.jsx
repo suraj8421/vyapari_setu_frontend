@@ -50,14 +50,14 @@ export default function StoresPage() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-surface-100">{t('stores.title')}</h1>
+                <h1 className="text-2xl font-bold text-surface-900">{t('stores.title')}</h1>
                 <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('stores.addStore')}</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? <div className="col-span-full"><LoadingSpinner /></div> : stores.length === 0 ? <div className="col-span-full text-center py-16 text-surface-500">{t('common.noData')}</div> :
                     stores.map(s => (
                         <div key={s.id} className="glass-card-hover p-5">
-                            <h3 className="font-semibold text-surface-100 text-lg mb-2">{s.name}</h3>
+                            <h3 className="font-semibold text-surface-900 text-lg mb-2">{s.name}</h3>
                             <div className="space-y-1 text-sm text-surface-400 mb-4">
                                 <p>{s.address}, {s.city}</p>
                                 <p>{s.state} - {s.pincode}</p>

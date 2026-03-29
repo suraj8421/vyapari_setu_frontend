@@ -79,7 +79,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-200">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 
                           flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary-500/30">
-                        K
+                        V
                     </div>
                     <div>
                         <h1 className="text-lg font-bold text-gradient">{t('common.appName')}</h1>

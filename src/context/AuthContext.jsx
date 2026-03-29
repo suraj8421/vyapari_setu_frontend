@@ -17,12 +17,29 @@ export function AuthProvider({ children }) {
     const [error, setError] = useState(null);
 
     const isAuthenticated = !!user;
-    const isAdmin = user?.role === 'ADMIN';
+    const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
 
     const login = useCallback(async (email, password) => {
         setLoading(true);
         setError(null);
         try {
+            // Super Admin Mock Bypass
+            if (email === 'super@vyaparisetu.com' && password === 'admin123') {
+                const superAdminUser = {
+                    id: 'super-admin-001',
+                    firstName: 'System',
+                    lastName: 'Admin',
+                    email: 'super@vyaparisetu.com',
+                    role: 'SUPERADMIN',
+                };
+                localStorage.setItem('accessToken', 'mock-super-token');
+                localStorage.setItem('refreshToken', 'mock-super-refresh');
+                localStorage.setItem('user', JSON.stringify(superAdminUser));
+                setUser(superAdminUser);
+                setLoading(false);
+                return superAdminUser;
+            }
+
             const { data } = await authAPI.login({ email, password });
             if (data.success) {
                 const { user: userData, accessToken, refreshToken } = data.data;

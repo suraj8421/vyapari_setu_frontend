@@ -60,7 +60,7 @@ export default function UsersPage() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-surface-100">{t('users.title')}</h1>
+                <h1 className="text-2xl font-bold text-surface-900">{t('users.title')}</h1>
                 <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('users.addUser')}</button>
             </div>
             <div className="glass-card overflow-hidden">
@@ -68,7 +68,7 @@ export default function UsersPage() {
                     <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>{t('common.name')}</th><th>{t('common.email')}</th><th>{t('users.role')}</th><th>{t('nav.stores')}</th><th>{t('common.status')}</th><th>{t('common.actions')}</th></tr></thead>
                         <tbody>{users.map(u => (
                             <tr key={u.id}>
-                                <td className="font-medium text-surface-100">{u.firstName} {u.lastName}</td>
+                                <td className="font-medium text-surface-900">{u.firstName} {u.lastName}</td>
                                 <td className="text-xs">{u.email}</td>
                                 <td><span className={`badge ${u.role === 'ADMIN' ? 'badge-info' : 'badge-neutral'}`}>{u.role === 'ADMIN' ? t('users.admin') : t('users.storeUser')}</span></td>
                                 <td className="text-xs">{u.store?.name || '-'}</td>

@@ -21,6 +21,19 @@ import ExpensesPage from './pages/ExpensesPage';
 import InventoryPage from './pages/InventoryPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
 import NetworkPage from './pages/B2B/NetworkPage';
+import HomePage from './pages/HomePage';
+
+// Super Admin Imports
+import SALayout from './components/superadmin/SALayout';
+import SADashboardPage from './pages/superadmin/SADashboardPage';
+import SAUsersPage from './pages/superadmin/SAUsersPage';
+import SAEmployeesPage from './pages/superadmin/SAEmployeesPage';
+import SALeadsPage from './pages/superadmin/SALeadsPage';
+import SAPlansPage from './pages/superadmin/SAPlansPage';
+import SAPaymentsPage from './pages/superadmin/SAPaymentsPage';
+import SAOnboardingPage from './pages/superadmin/SAOnboardingPage';
+import SAReportsPage from './pages/superadmin/SAReportsPage';
+import SASettingsPage from './pages/superadmin/SASettingsPage';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -35,9 +48,9 @@ export default function App() {
                         <Routes>
                             <Route path="/login" element={<LoginPage />} />
                             {/* Customer Portal — public, separate from business dashboard */}
-                            <Route path="/customer-portal" element={<CustomerPortalPage />} />
-                            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                                <Route index element={<Navigate to="/dashboard" replace />} />
+
+                            <Route path="/" element={<HomePage />} />
+                            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                                 <Route path="dashboard" element={<DashboardPage />} />
                                 <Route path="products" element={<ProductsPage />} />
                                 <Route path="sales" element={<SalesPage />} />
@@ -54,6 +67,20 @@ export default function App() {
                                 <Route path="expenses" element={<ExpensesPage />} />
                                 <Route path="inventory" element={<InventoryPage />} />
                             </Route>
+                            
+                            {/* Super Admin Segment (Currently un-protected for UI preview) */}
+                            <Route path="/superadmin" element={<SALayout />}>
+                                <Route index element={<Navigate to="dashboard" replace />} />
+                                <Route path="dashboard" element={<SADashboardPage />} />
+                                <Route path="users" element={<SAUsersPage />} />
+                                <Route path="employees" element={<SAEmployeesPage />} />
+                                <Route path="leads" element={<SALeadsPage />} />
+                                <Route path="plans" element={<SAPlansPage />} />
+                                <Route path="payments" element={<SAPaymentsPage />} />
+                                <Route path="reports" element={<SAReportsPage />} />
+                                <Route path="settings" element={<SASettingsPage />} />
+                            </Route>
+
                             <Route path="*" element={<Navigate to="/dashboard" replace />} />
                         </Routes>
                     </NotificationProvider>

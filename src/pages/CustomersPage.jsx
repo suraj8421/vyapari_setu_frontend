@@ -262,7 +262,7 @@ export default function CustomersPage() {
         <div className="space-y-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-surface-100">{t('customers.title')} / {t('nav.khata')}</h1>
+                    <h1 className="text-2xl font-bold text-surface-900">{t('customers.title')} / {t('nav.khata')}</h1>
                     <p className="text-surface-500 text-sm">{pagination?.total || 0} {t('common.results')}</p>
                 </div>
                 <div className="flex gap-3">
@@ -299,7 +299,7 @@ export default function CustomersPage() {
                             <div key={cust.id} className="glass-card-hover p-5">
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
-                                        <h3 className="font-semibold text-surface-100">{cust.name}</h3>
+                                        <h3 className="font-semibold text-surface-900">{cust.name}</h3>
                                         <p className="text-xs text-surface-500">{cust.phone || '-'}</p>
                                     </div>
                                     <span className={`text-lg font-bold ${Number(cust.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
