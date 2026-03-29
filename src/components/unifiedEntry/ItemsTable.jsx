@@ -6,6 +6,8 @@ import { PlusIcon, TrashIcon, CubeIcon, ChevronDownIcon, ChevronUpIcon } from '@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import AutocompleteInput from '../common/AutocompleteInput';
+import SmartScanModal from '../common/SmartScanModal';
+import { HiOutlineSparkles } from 'react-icons/hi2';
 
 // ── Single DetailRow (Variable Mode Bag) ──────────────────────────
 function VariableBagEntry({ value, index, onChange, onRemove }) {
@@ -76,7 +78,7 @@ function ItemRow({ item, index, products, invoiceType, onItemChange, onRemoveIte
             <div className="grid grid-cols-[2fr_120px_140px_160px_120px_100px_100px_120px_40px] gap-2 p-3 items-center text-sm">
                 
                 {/* Product */}
-                <div>
+                <div className="relative">
                     <AutocompleteInput 
                         value={item.productName || ''}
                         onChange={(val) => onItemChange(index, 'productName', val)}
@@ -85,6 +87,19 @@ function ItemRow({ item, index, products, invoiceType, onItemChange, onRemoveIte
                         placeholder="Select Product..."
                         className="input h-10 w-full rounded-xl text-[13px] border-surface-100 bg-surface-50 focus:bg-white"
                     />
+                    {/* Row-level Stock Warning */}
+                    {(() => {
+                        const product = (products || []).find(p => p.id === item.productId);
+                        const available = product?.inventory?.reduce((acc, inv) => acc + inv.quantity, 0) || 0;
+                        if (item.productId && Number(item.quantity || 0) > available) {
+                            return (
+                                <div className="absolute -top-2 -right-1 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-bounce">
+                                    LOW STOCK: {available}
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
                 </div>
 
                 {/* Unit */}
@@ -321,17 +336,31 @@ function ItemRow({ item, index, products, invoiceType, onItemChange, onRemoveIte
 }
 
 // ── Main ItemsTable Component ──────────────────────────────────────────
-export default function ItemsTable({ items, products, type, invoiceType, onItemChange, onAddItem, onRemoveItem }) {
+export default function ItemsTable({ items, products, type, invoiceType, onItemChange, onAddItem, onRemoveItem, onScannerAction }) {
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+
     return (
         <div className="space-y-4">
-            <h3 className="text-xl font-black flex items-center gap-2 mb-4 tracking-tight">
-                <CubeIcon className="w-6 h-6 text-primary-600" />
-                Line Items
-                <div className="w-px h-6 bg-surface-200 mx-2" />
-                <span className="text-sm text-surface-400 font-bold uppercase tracking-widest">
-                    {items.length} Product{items.length !== 1 ? 's' : ''}
-                </span>
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-black flex items-center gap-2 tracking-tight">
+                    <CubeIcon className="w-6 h-6 text-primary-600" />
+                    Line Items
+                    <div className="w-px h-6 bg-surface-200 mx-2" />
+                    <span className="text-sm text-surface-400 font-bold uppercase tracking-widest">
+                        {items.length} Product{items.length !== 1 ? 's' : ''}
+                    </span>
+                </h3>
+
+                {/* Unified Smart Scan Button */}
+                <button
+                    type="button"
+                    onClick={() => setIsScannerOpen(true)}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-surface-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-105 transition-all shadow-xl shadow-surface-200"
+                >
+                    <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
+                    Smart Scan
+                </button>
+            </div>
 
             {/* Header Labels (Matching Grid Columns) */}
             <div className="grid grid-cols-[2fr_120px_140px_160px_120px_100px_100px_120px_40px] gap-2 px-4 text-[10px] font-black uppercase text-surface-400 tracking-[0.2em] hidden lg:grid border-b border-surface-100 pb-2">
@@ -370,16 +399,25 @@ export default function ItemsTable({ items, products, type, invoiceType, onItemC
             </div>
 
             {/* Add Item Button */}
-            <button
-                type="button"
-                onClick={onAddItem}
-                className="group w-full py-5 border-2 border-dashed border-surface-300 rounded-2xl flex items-center justify-center gap-4 text-surface-400 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50/30 transition-all font-black text-sm uppercase tracking-widest shadow-sm"
-            >
-                <div className="p-2 bg-surface-100 rounded-xl group-hover:bg-primary-100 group-hover:rotate-90 transition-all duration-300">
-                    <PlusIcon className="w-6 h-6" />
-                </div>
-                Add Product Row
-            </button>
+            <div className="flex flex-col md:flex-row gap-4">
+                <button
+                    type="button"
+                    onClick={onAddItem}
+                    className="group flex-1 py-5 border-2 border-dashed border-surface-300 rounded-2xl flex items-center justify-center gap-4 text-surface-400 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50/30 transition-all font-black text-sm uppercase tracking-widest shadow-sm"
+                >
+                    <div className="p-2 bg-surface-100 rounded-xl group-hover:bg-primary-100 group-hover:rotate-90 transition-all duration-300">
+                        <PlusIcon className="w-6 h-6" />
+                    </div>
+                    Add Product Row
+                </button>
+            </div>
+
+            {/* Scanner Modal */}
+            <SmartScanModal 
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                onAction={onScannerAction}
+            />
         </div>
     );
 }

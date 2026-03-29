@@ -16,8 +16,12 @@ import 'jspdf-autotable';
 import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineMagnifyingGlass,
     HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineArrowUp, HiOutlineArrowDown,
-    HiOutlineDocumentArrowDown,
+    HiOutlineDocumentArrowDown, HiOutlineSparkles,
+    HiOutlineShieldCheck
 } from 'react-icons/hi2';
+import CreditScoreGauge from '../components/common/CreditScoreGauge';
+import SmartScanModal from '../components/common/SmartScanModal';
+import { toast } from 'react-hot-toast';
 import { getOrFetch } from '../utils/dataCache';
 
 export default function CustomersPage() {
@@ -31,15 +35,21 @@ export default function CustomersPage() {
     const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
     const [stores, setStores] = useState([]);
     const [khataRange, setKhataRange] = useState(searchParams.get('range') || 'all');
+    const [statusFilter, setStatusFilter] = useState(searchParams.get('filter') || '');
 
     // Modals
     const [custModalOpen, setCustModalOpen] = useState(false);
     const [payModalOpen, setPayModalOpen] = useState(false);
     const [khataOpen, setKhataOpen] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [ledgerEntries, setLedgerEntries] = useState([]);
     const [ledgerPag, setLedgerPag] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [khataStartDate, setKhataStartDate] = useState('');
+    const [khataEndDate, setKhataEndDate] = useState('');
+    const [scoreModalOpen, setScoreModalOpen] = useState(false);
+    const [scoreData, setScoreData] = useState(null);
 
     const emptyForm = { name: '', phone: '', email: '', address: '', creditLimit: 0, storeId: user?.storeId || '' };
     const [form, setForm] = useState(emptyForm);
@@ -51,13 +61,14 @@ export default function CustomersPage() {
         const params = {};
         if (page > 1) params.page = page;
         if (search) params.search = search;
+        if (statusFilter) params.filter = statusFilter;
         const ledgerId = searchParams.get('ledger');
         if (ledgerId) params.ledger = ledgerId;
         if (khataRange) params.range = khataRange;
         setSearchParams(params, { replace: true });
 
         fetchCustomers();
-    }, [page, search]);
+    }, [page, search, statusFilter]);
 
     // ─── Static/Reference Data (Cached) ─────────────────────
     useEffect(() => {
@@ -263,6 +274,7 @@ export default function CustomersPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-surface-900">{t('customers.title')} / {t('nav.khata')}</h1>
+
                     <p className="text-surface-500 text-sm">{pagination?.total || 0} {t('common.results')}</p>
                 </div>
                 <div className="flex gap-3">
@@ -275,6 +287,13 @@ export default function CustomersPage() {
                         <HiOutlineDocumentArrowDown className="w-5 h-5" />
                         <span className="hidden sm:inline">Export CSV</span>
                     </button>
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        className="btn-ghost text-primary-400 border border-primary-400/30 flex items-center gap-2"
+                    >
+                        <HiOutlineSparkles className="w-5 h-5" />
+                        Smart Scan
+                    </button>
                     <button onClick={() => { setSelectedCustomer(null); setForm({ ...emptyForm }); setCustModalOpen(true); }} className="btn-primary" id="add-customer-btn">
                         <HiOutlinePlus className="w-5 h-5" />
                         {t('customers.addCustomer')}
@@ -282,24 +301,43 @@ export default function CustomersPage() {
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="glass-card p-4">
-                <div className="relative max-w-md">
+            {/* Search + Active Filter */}
+            <div className="glass-card p-4 flex flex-wrap items-center gap-4">
+                <div className="relative max-w-md flex-1">
                     <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
                     <input type="text" className="input-field pl-10 py-2.5" placeholder={t('common.search')}
                         value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
                 </div>
+                {statusFilter && (
+                    <div className="flex items-center gap-2 bg-primary-400/10 text-primary-400 px-3 py-2 rounded-xl border border-primary-400/20 animate-fade-in">
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                            Filter: {statusFilter === 'pending' ? 'Outstanding Balance' : statusFilter}
+                        </span>
+                        <button 
+                            onClick={() => setStatusFilter('')}
+                            className="p-1 hover:bg-primary-400/20 rounded-full transition-colors"
+                        >
+                            <HiOutlinePlus className="w-3.5 h-3.5 rotate-45" />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Customer Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? <div className="col-span-full"><LoadingSpinner /></div> :
-                    customers.length === 0 ? <div className="col-span-full text-center py-16 text-surface-500">{t('common.noData')}</div> :
-                        customers.map((cust) => (
+                    customers.filter(c => statusFilter === 'pending' ? (Number(c.balance) > 0) : true).length === 0 ? (
+                        <div className="col-span-full text-center py-16 text-surface-500">
+                            {statusFilter === 'pending' ? t('customers.noOutstanding') : t('common.noData')}
+                        </div>
+                    ) : (
+                        customers
+                            .filter(c => statusFilter === 'pending' ? (Number(c.balance) > 0) : true)
+                            .map((cust) => (
                             <div key={cust.id} className="glass-card-hover p-5">
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
-                                        <h3 className="font-semibold text-surface-900">{cust.name}</h3>
+                                        <h3 className="font-semibold text-surface-100">{cust.name}</h3>
                                         <p className="text-xs text-surface-500">{cust.phone || '-'}</p>
                                     </div>
                                     <span className={`text-lg font-bold ${Number(cust.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -312,10 +350,23 @@ export default function CustomersPage() {
                                     <span>{cust._count?.sales || 0} {t('nav.sales')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setScoreData({ name: cust.name, score: cust.creditScore });
+                                            setScoreModalOpen(true);
+                                        }}
+                                        className="btn-ghost btn-sm text-primary-400 bg-primary-400/5 hover:bg-primary-400/10 flex items-center gap-1.5 px-3"
+                                        title="View Credit Insights"
+                                    >
+                                        <HiOutlineShieldCheck className="w-4 h-4" />
+                                        Score
+                                    </button>
                                     <button onClick={() => openKhata(cust)} className="btn-secondary btn-sm flex-1">
                                         <HiOutlineDocumentText className="w-4 h-4" />
                                         {t('customers.viewKhata')}
                                     </button>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2">
                                     <button onClick={() => openPayment(cust)} className="btn-primary btn-sm flex-1">
                                         <HiOutlineBanknotes className="w-4 h-4" />
                                         {t('customers.recordPayment')}
@@ -331,7 +382,8 @@ export default function CustomersPage() {
                                 </div>
                             </div>
                         ))
-                }
+                )
+            }
             </div>
             <Pagination pagination={pagination} onPageChange={setPage} />
 
@@ -377,6 +429,32 @@ export default function CustomersPage() {
                 </form>
             </Modal>
 
+            {/* Credit Score Gauge Modal */}
+            <Modal
+                isOpen={scoreModalOpen}
+                onClose={() => setScoreModalOpen(false)}
+                title={`Credit Intelligence — ${scoreData?.name}`}
+                size="md"
+                bodyClassName="p-0 bg-slate-950 shadow-inner"
+                headerClassName="bg-slate-950 border-slate-800"
+                titleClassName="text-slate-300 font-bold tracking-tight"
+            >
+                <div className="flex flex-col min-h-[500px]">
+                    <div className="flex-1">
+                        <CreditScoreGauge score={scoreData?.score || 100} name={scoreData?.name} />
+                    </div>
+                    
+                    <div className="p-8 pt-0 bg-slate-950">
+                        <button 
+                            onClick={() => setScoreModalOpen(false)}
+                            className="w-full py-4 rounded-xl bg-slate-900/50 hover:bg-slate-800 text-slate-300 font-black border border-slate-700/50 backdrop-blur-md transition-all uppercase tracking-[0.3em] text-[10px] shadow-lg active:scale-[0.98]"
+                        >
+                            Close Analysis Terminal
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
             {/* Payment Modal */}
             <Modal isOpen={payModalOpen} onClose={() => setPayModalOpen(false)} title={`${t('customers.recordPayment')} - ${selectedCustomer?.name}`}>
                 <form onSubmit={handlePayment} className="space-y-4">
@@ -416,7 +494,6 @@ export default function CustomersPage() {
                 </form>
             </Modal>
 
-            {/* Khata (Ledger) Modal */}
             <Modal
                 isOpen={khataOpen}
                 onClose={() => {
@@ -427,39 +504,66 @@ export default function CustomersPage() {
                     delete params.range;
                     setSearchParams(params, { replace: true });
                 }}
-                title={`${t('customers.khataTitle')} - ${selectedCustomer?.name}`}
+                title={`${t('customers.khataTitle')} — ${selectedCustomer?.name}`}
                 size="lg"
             >
-                <div className="flex items-center justify-between mb-4 gap-4">
-                    <div className="flex-1 p-4 rounded-xl bg-surface-800/30 flex items-center justify-between">
-                        <span className="text-surface-400">{t('customers.balance')}</span>
-                        <span className={`text-xl font-bold ${Number(selectedCustomer?.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(selectedCustomer?.balance)}
-                        </span>
+                <div className="flex flex-col gap-4 mb-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 p-4 rounded-xl bg-surface-800/30 flex items-center justify-between">
+                            <span className="text-surface-700 font-medium">{t('customers.balance')}</span>
+                            <span className={`text-xl font-bold ${Number(selectedCustomer?.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                {formatCurrency(selectedCustomer?.balance)}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleDownloadKhataPDF}
+                                disabled={ledgerEntries.length === 0}
+                                className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-4 rounded-xl flex items-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                                title="Download Statement PDF"
+                            >
+                                <HiOutlineDocumentArrowDown className="w-5 h-5" />
+                                PDF
+                            </button>
+                            <select
+                                className="select-field w-36 py-3"
+                                value={khataRange}
+                                onChange={(e) => setKhataRange(e.target.value)}
+                            >
+                                <option value="all">{t('common.allTime')}</option>
+                                <option value="today">{t('common.today')}</option>
+                                <option value="yesterday">{t('common.yesterday')}</option>
+                                <option value="7d">{t('common.last7Days')}</option>
+                                <option value="30d">{t('common.last30Days')}</option>
+                                <option value="month">{t('common.thisMonth')}</option>
+                                <option value="custom">{t('common.custom')}</option>
+                            </select>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleDownloadKhataPDF}
-                            disabled={ledgerEntries.length === 0}
-                            className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-4 rounded-xl flex items-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
-                            title="Download Statement PDF"
-                        >
-                            <HiOutlineDocumentArrowDown className="w-5 h-5" />
-                            PDF
-                        </button>
-                        <select
-                            className="select-field w-36 py-3"
-                            value={khataRange}
-                            onChange={(e) => setKhataRange(e.target.value)}
-                        >
-                            <option value="all">All Time</option>
-                            <option value="today">Today</option>
-                            <option value="yesterday">Yesterday</option>
-                            <option value="7d">Last 7 Days</option>
-                            <option value="30d">Last 30 Days</option>
-                            <option value="month">This Month</option>
-                        </select>
-                    </div>
+
+                    {/* Custom Date Picker */}
+                    {khataRange === 'custom' && (
+                        <div className="flex items-center gap-3 p-3 bg-surface-800/20 rounded-xl animate-fade-in">
+                            <div className="flex-1">
+                                <label className="text-[10px] uppercase tracking-wider text-surface-500 font-bold ml-1 mb-1 block">Start Date</label>
+                                <input 
+                                    type="date" 
+                                    className="input-field py-2 text-sm" 
+                                    value={khataStartDate}
+                                    onChange={(e) => setKhataStartDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-[10px] uppercase tracking-wider text-surface-500 font-bold ml-1 mb-1 block">End Date</label>
+                                <input 
+                                    type="date" 
+                                    className="input-field py-2 text-sm" 
+                                    value={khataEndDate}
+                                    onChange={(e) => setKhataEndDate(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                     {ledgerEntries.length === 0 ? (
@@ -473,11 +577,11 @@ export default function CustomersPage() {
                                         {entry.type === 'CREDIT' ? <HiOutlineArrowUp className="w-4 h-4" /> : <HiOutlineArrowDown className="w-4 h-4" />}
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-surface-200">
+                                        <p className="text-sm font-bold text-surface-900">
                                             {entry.type === 'CREDIT' ? t('customers.creditEntry') : t('customers.debitEntry')}
                                         </p>
-                                        <p className="text-xs text-surface-500">{entry.description || '-'}</p>
-                                        <p className="text-xs text-surface-600">{new Date(entry.createdAt).toLocaleString('en-IN')}</p>
+                                        <p className="text-xs text-surface-700 font-medium">{entry.description || '-'}</p>
+                                        <p className="text-xs text-surface-500">{new Date(entry.createdAt).toLocaleString('en-IN')}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -491,6 +595,31 @@ export default function CustomersPage() {
                     )}
                 </div>
             </Modal>
+
+            <SmartScanModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                contextType="ledger"
+                onScanComplete={(data) => {
+                    // Search for existing customer
+                    const found = customers.find(c => c.phone === data.phone || c.name === data.name);
+                    if (found) {
+                        openKhata(found);
+                        toast.success(`Found Customer: ${found.name}`);
+                    } else {
+                        setForm(prev => ({
+                            ...prev,
+                            name: data.name || prev.name,
+                            phone: data.phone || prev.phone,
+                            email: data.email || prev.email,
+                            address: data.address || prev.address
+                        }));
+                        setCustModalOpen(true);
+                        toast.success("New Customer details captured!");
+                    }
+                    setIsScannerOpen(false);
+                }}
+            />
         </div>
     );
 }

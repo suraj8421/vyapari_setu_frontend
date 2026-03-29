@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineMagnifyingGlass, HiOutlineSparkles } from 'react-icons/hi2';
+import SmartScanModal from '../components/common/SmartScanModal';
 
 export default function SuppliersPage() {
     const { t } = useTranslation();
@@ -18,6 +19,7 @@ export default function SuppliersPage() {
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [stores, setStores] = useState([]);
     const emptyForm = { name: '', phone: '', email: '', gstNumber: '', address: '', storeId: user?.storeId || '' };
@@ -65,14 +67,23 @@ export default function SuppliersPage() {
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-surface-900">{t('suppliers.title')}</h1>
-                {isAdmin && <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('suppliers.addSupplier')}</button>}
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        className="btn-ghost text-primary-400 border border-primary-400/30 flex items-center gap-2"
+                    >
+                        <HiOutlineSparkles className="w-5 h-5" />
+                        Smart Scan
+                    </button>
+                    {isAdmin && <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('suppliers.addSupplier')}</button>}
+                </div>
             </div>
             <div className="glass-card p-4"><div className="relative max-w-md"><HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" /><input type="text" className="input-field pl-10 py-2.5" placeholder={t('common.search')} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div></div>
             <div className="glass-card overflow-hidden">
                 {loading ? <LoadingSpinner /> : suppliers.length === 0 ? <div className="text-center py-16 text-surface-500">{t('common.noData')}</div> : (
                     <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>{t('suppliers.supplierName')}</th><th>{t('common.phone')}</th><th>{t('suppliers.gstNumber')}</th><th>{t('common.address')}</th>{isAdmin && <th>{t('common.actions')}</th>}</tr></thead>
                         <tbody>{suppliers.map(s => (
-                            <tr key={s.id}><td className="font-medium text-surface-900">{s.name}</td><td>{s.phone || '-'}</td><td>{s.gstNumber || '-'}</td><td className="text-xs">{s.address || '-'}</td>
+                            <tr key={s.id}><td className="font-bold text-surface-900">{s.name}</td><td>{s.phone || '-'}</td><td>{s.gstNumber || '-'}</td><td className="text-xs">{s.address || '-'}</td>
                                 {isAdmin && <td><div className="flex gap-2"><button onClick={() => { setEditItem(s); setForm({ name: s.name, phone: s.phone || '', email: s.email || '', gstNumber: s.gstNumber || '', address: s.address || '', storeId: s.storeId }); setModalOpen(true); }} className="btn-ghost btn-sm text-primary-400"><HiOutlinePencilSquare className="w-4 h-4" /></button><button onClick={() => handleDelete(s.id)} className="btn-ghost btn-sm text-red-400"><HiOutlineTrash className="w-4 h-4" /></button></div></td>}
                             </tr>))}</tbody></table></div>
                 )}
@@ -94,6 +105,24 @@ export default function SuppliersPage() {
                     </div>
                 </form>
             </Modal>
+
+            <SmartScanModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                contextType="supplier"
+                onScanComplete={(data) => {
+                    setForm(prev => ({
+                        ...prev,
+                        name: data.name || prev.name,
+                        phone: data.phone || prev.phone,
+                        email: data.email || prev.email,
+                        address: data.address || prev.address
+                    }));
+                    setIsScannerOpen(false);
+                    setModalOpen(true);
+                    toast.success("Supplier info captured! Please review.");
+                }}
+            />
         </div>
     );
 }

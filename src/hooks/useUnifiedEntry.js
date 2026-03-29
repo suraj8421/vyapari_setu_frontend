@@ -141,6 +141,19 @@ export function useUnifiedEntry() {
         if (id) fetchHistory();
     }, [id, fetchHistory]);
 
+    // ─── Smart Reminder for High Risk Customers ─────────────
+    useEffect(() => {
+        if (type === 'SALE' && formData.partyId) {
+            const customer = customers.find(c => c.id === formData.partyId);
+            if (customer && customer.creditScore < 50) {
+                toast.error(
+                    `⚠️ High Risk: ${customer.name} (Score: ${customer.creditScore}). Expect payment delays!`,
+                    { duration: 6000, icon: '🚨', id: 'risk-warning' }
+                );
+            }
+        }
+    }, [formData.partyId, type, customers]);
+
     // ════════════════════════════════════════════════════════
     // Form Handlers
     // ════════════════════════════════════════════════════════
@@ -199,6 +212,7 @@ export function useUnifiedEntry() {
                         updated.unit = product.unit || 'PCS';
                         updated.gstRate = Number(product.gstRate);
                         updated.unitsPerBox = product.unitsPerBox;
+                        updated.barcode = product.barcode;
                     }
                 }
 
@@ -244,6 +258,7 @@ export function useUnifiedEntry() {
                         updated.gstRate = Number(product.gstRate);
                         updated.productName = product.name;
                         updated.unitsPerBox = product.unitsPerBox;
+                        updated.barcode = product.barcode;
                     }
                 }
 
@@ -268,6 +283,88 @@ export function useUnifiedEntry() {
             return { ...prev, items: newItems };
         });
     }, [type]);
+
+    /**
+     * Bulk Add Items (from Scanner)
+     */
+    const bulkAddItems = useCallback((newItemsData) => {
+        setFormData(prev => {
+            const currentItems = [...prev.items];
+            // Remove the first empty row if it hasn't been used yet
+            const filteredItems = currentItems.length === 1 && !currentItems[0].productId && !currentItems[0].productName 
+                ? [] 
+                : currentItems;
+
+            const mapped = newItemsData.map(data => {
+                const item = { ...BLANK_ITEM, ...data };
+                // Ensure cost price is set if it's a purchase
+                if (type === 'PURCHASE' && data.costPrice) item.unitPrice = Number(data.costPrice);
+                if (type === 'SALE' && data.sellingPrice) item.unitPrice = Number(data.sellingPrice);
+                
+                // Recalculate total for the new item
+                const qty = Number(item.quantity || 0);
+                const price = Number(item.unitPrice || 0);
+                const disc = Number(item.discount || 0);
+                const gst = prev.invoiceType === 'GST' ? Number(item.gstRate || 0) : 0;
+                const net = (qty * price) - (qty * disc);
+                item.total = net + (net * gst / 100);
+                
+                return item;
+            });
+
+            return { ...prev, items: [...filteredItems, ...mapped] };
+        });
+    }, [type]);
+
+    /**
+     * Unified Handler for Scanner Actions
+     */
+    const handleScannerAction = useCallback((action, payload) => {
+        // Support for SimpleEntryForm types (EXPENSE, PAYMENT, MISC)
+        if (type === 'EXPENSE' || type === 'PAYMENT' || type === 'MISC') {
+            setFormData(prev => ({
+                ...prev,
+                paidAmount: payload.price || prev.paidAmount,
+                category: payload.name || prev.category,
+                notes: payload.notes || prev.notes
+            }));
+            toast.success(`✅ Scanned data applied to ${type}`);
+            return;
+        }
+
+        if (action === 'BULK_IMPORT') {
+            bulkAddItems(payload);
+        } else if (action === 'OPEN_CREATE_PREFILLED' || action === 'OPEN_EDIT') {
+            // Overwrite the last empty item or add new
+            setFormData(prev => {
+                const items = [...prev.items];
+                const lastIdx = items.length - 1;
+                
+                // If last item is blank, reuse it
+                if (!items[lastIdx].productId && !items[lastIdx].productName) {
+                    items[lastIdx] = { ...items[lastIdx], ...payload };
+                    if (payload.costPrice && type === 'PURCHASE') items[lastIdx].unitPrice = Number(payload.costPrice);
+                    if (payload.sellingPrice && type === 'SALE') items[lastIdx].unitPrice = Number(payload.sellingPrice);
+                } else {
+                    const newItem = { ...BLANK_ITEM, ...payload };
+                    if (payload.costPrice && type === 'PURCHASE') newItem.unitPrice = Number(payload.costPrice);
+                    if (payload.sellingPrice && type === 'SALE') newItem.unitPrice = Number(payload.sellingPrice);
+                    items.push(newItem);
+                }
+                
+                // Trigger line item recalc (simplified here, but handleItemChange logic should ideally be reusable)
+                const finalItems = items.map(it => {
+                    const qty = Number(it.quantity || 0);
+                    const pr = Number(it.unitPrice || 0);
+                    const net = (qty * pr); 
+                    it.total = net + (net * (prev.invoiceType === 'GST' ? Number(it.gstRate) : 0) / 100);
+                    return it;
+                });
+
+                return { ...prev, items: finalItems };
+            });
+        }
+    }, [bulkAddItems, type]);
 
     // Derive grand totals from items list (called on every render — cheap enough)
     const calculateTotals = useCallback(() => {
@@ -309,6 +406,22 @@ export function useUnifiedEntry() {
         const paidAmount = formData.payments.reduce((acc, p) => acc + Number(p.amount), 0);
         const totalQuantity = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
         
+        const stockWarnings = items.some(item => {
+            if (!item.productId) return false;
+            const product = (products || []).find(p => p.id === item.productId);
+            const available = product?.inventory?.reduce((acc, inv) => acc + inv.quantity, 0) || 0;
+            return Number(item.quantity || 0) > available;
+        });
+
+        const selectedParty = type === 'SALE' 
+            ? customers.find(c => c.id === formData.partyId) 
+            : suppliers.find(s => s.id === formData.partyId);
+            
+        const creditLimitExceeded = type === 'SALE' && 
+            selectedParty && 
+            Number(selectedParty.creditLimit) > 0 && 
+            (Number(selectedParty.balance) + grandTotal) > Number(selectedParty.creditLimit);
+
         return { 
             subtotal, 
             discount: totalDiscount, 
@@ -318,7 +431,9 @@ export function useUnifiedEntry() {
             igst, 
             total: grandTotal,
             paidAmount,
-            totalQuantity
+            totalQuantity,
+            stockWarnings,
+            creditLimitExceeded
         };
     }, [formData.items, formData.invoiceType, formData.payments, formData.discount]);
 
@@ -427,5 +542,6 @@ export function useUnifiedEntry() {
         removePayment,
         handlePaymentChange,
         handleSubmit,
+        handleScannerAction,
     };
 }

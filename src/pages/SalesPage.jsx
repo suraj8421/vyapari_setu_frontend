@@ -35,7 +35,9 @@ import {
     HiOutlineCheckCircle,
     HiOutlineArrowPath,
     HiOutlineDocumentArrowDown,
+    HiOutlineSparkles
 } from 'react-icons/hi2';
+import SmartScanModal from '../components/common/SmartScanModal';
 import { resolveDateRange } from '../utils/dateUtils';
 
 // ── Sale Status Badge ──────────────────────────────────────────────
@@ -185,8 +187,8 @@ export default function SalesPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     // Filters from URL
-    const initialRange = searchParams.get('range') || '';
-    const initialPaymentMethod = searchParams.get('paymentMethod') || '';
+    const initialRange = searchParams.get('range') || (searchParams.get('filter') === 'today' ? 'today' : '');
+    const initialPaymentMethod = searchParams.get('paymentMethod') || (searchParams.get('type') === 'credit' ? 'CREDIT' : '');
 
     const [sales, setSales] = useState([]);
     const [pagination, setPagination] = useState(null);
@@ -198,6 +200,7 @@ export default function SalesPage() {
 
     // New-sale modal
     const [modalOpen, setModalOpen] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // NEW: Return modal state
@@ -419,6 +422,13 @@ export default function SalesPage() {
                     >
                         <HiOutlineDocumentArrowDown className="w-5 h-5" />
                         <span className="hidden sm:inline">Export CSV</span>
+                    </button>
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-surface-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-105 transition-all shadow-xl shadow-surface-200"
+                    >
+                        <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
+                        Smart Scan
                     </button>
                     <button onClick={openNewSale} className="btn-primary" id="new-sale-btn">
                         <HiOutlinePlus className="w-5 h-5" />
@@ -685,6 +695,50 @@ export default function SalesPage() {
                     />
                 )}
             </AnimatePresence>
+
+            <SmartScanModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                contextType="sales"
+                onScanComplete={(data) => {
+                    // Find product or add as custom item
+                    const existing = products.find(p => p.barcode === data.barcode || p.name === data.name);
+                    if (existing) {
+                        // Mimic select logic
+                        const updated = [...saleItems];
+                        const lastItem = updated[updated.length - 1];
+                        if (lastItem.productId === '') {
+                            updated[updated.length - 1] = {
+                                ...lastItem,
+                                productId: existing.id,
+                                name: existing.name,
+                                unitPrice: Number(existing.sellingPrice),
+                                gstRate: Number(existing.gstRate)
+                            };
+                            setSaleItems(updated);
+                        } else {
+                            setSaleItems([...updated, {
+                                productId: existing.id,
+                                quantity: 1,
+                                unitPrice: Number(existing.sellingPrice),
+                                discount: 0,
+                                gstRate: Number(existing.gstRate)
+                            }]);
+                        }
+                    } else {
+                        // Add as new row with extracted info
+                        setSaleItems([...saleItems, {
+                            productId: '',
+                            name: data.name || 'Scanned Item',
+                            quantity: data.quantity || 1,
+                            unitPrice: data.price || 0,
+                            discount: 0,
+                            gstRate: data.gst || 0
+                        }]);
+                    }
+                    toast.success("Intelligence Applied to Invoice");
+                }}
+            />
         </div >
     );
 }

@@ -3,6 +3,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { productAPI, storeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -13,8 +14,8 @@ import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash,
     HiOutlineMagnifyingGlass, HiOutlineFunnel, HiOutlineQrCode
 } from 'react-icons/hi2';
-import ScannerModal from '../components/common/ScannerModal';
-import AIScanner from '../components/common/AIScanner';
+import SmartScanModal from '../components/common/SmartScanModal';
+import { HiOutlineSparkles } from 'react-icons/hi2';
 import { getOrFetch } from '../utils/dataCache';
 import { toast } from 'react-hot-toast';
 
@@ -37,8 +38,7 @@ export default function ProductsPage() {
     const [saving, setSaving] = useState(false);
 
     // Scanner integration
-    const [scannerOpen, setScannerOpen] = useState(false);
-    const [aiScannerOpen, setAiScannerOpen] = useState(false);
+    const [smartScanOpen, setSmartScanOpen] = useState(false);
 
     const emptyForm = {
         name: '', sku: '', barcode: '', category: '', unit: 'PCS',
@@ -48,10 +48,21 @@ export default function ProductsPage() {
     };
     const [form, setForm] = useState(emptyForm);
 
+    const location = useLocation();
+
     // ─── Products Fetch (Paged/Filtered) ───────────────────
     useEffect(() => {
         fetchProducts();
     }, [page, search, category]);
+
+    // ─── Handle Redirection from Scan ─────────────────────
+    useEffect(() => {
+        if (location.state?.scanAction && location.state?.scanData) {
+            handleScannerAction(location.state.scanAction, location.state.scanData);
+            // Clear state so it doesn't re-trigger on refresh
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
 
     // ─── Static/Reference Data (Cached) ─────────────────────
     useEffect(() => {
@@ -218,18 +229,11 @@ export default function ProductsPage() {
                 </div>
                 <div className="flex gap-3">
                     <button
-                        onClick={() => setScannerOpen(true)}
-                        className="btn-secondary whitespace-nowrap hidden sm:flex items-center gap-2 border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                        onClick={() => setSmartScanOpen(true)}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-surface-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-105 transition-all shadow-xl shadow-surface-200"
                     >
-                        <HiOutlineQrCode className="w-5 h-5" />
-                        <span className="font-semibold">Smart Scan</span>
-                    </button>
-                    <button
-                        onClick={() => { openCreate(); setAiScannerOpen(true); }}
-                        className="btn-secondary whitespace-nowrap hidden sm:flex items-center gap-2 border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
-                    >
-                        <span className="text-lg">✨</span>
-                        <span className="font-semibold">AI Scan</span>
+                        <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
+                        Smart Scan
                     </button>
                     <button onClick={openCreate} className="btn-primary" id="add-product-btn">
                         <HiOutlinePlus className="w-5 h-5" />
@@ -429,33 +433,11 @@ export default function ProductsPage() {
                 </form>
             </Modal>
 
-            {/* AI Scanner Modal */}
-            <AIScanner
-                isOpen={aiScannerOpen}
-                onClose={() => setAiScannerOpen(false)}
-                onApply={(fields) => {
-                    setForm(prev => ({
-                        ...prev,
-                        ...(fields.name && { name: fields.name }),
-                        ...(fields.sellingPrice && { sellingPrice: fields.sellingPrice }),
-                        ...(fields.costPrice && { costPrice: fields.costPrice }),
-                        ...(fields.barcode && { barcode: fields.barcode }),
-                        ...(fields.unit && { unit: fields.unit }),
-                        ...(fields.hsn && { hsnCode: fields.hsn }),
-                        ...(fields.category && { category: fields.category }),
-                    }));
-                    setModalOpen(true);
-                    toast.success(`AI applied ${Object.keys(fields).length} field(s) to the form`);
-                }}
-                context="product"
-            />
-
-            {/* Barcode / Smart Scanner */}
-            <ScannerModal
-                isOpen={scannerOpen}
-                onClose={() => setScannerOpen(false)}
+            {/* Unified Smart Scan Modal */}
+            <SmartScanModal
+                isOpen={smartScanOpen}
+                onClose={() => setSmartScanOpen(false)}
                 onAction={handleScannerAction}
-                stores={stores}
             />
         </div>
     );

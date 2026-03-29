@@ -17,6 +17,7 @@ import {
     HiOutlineTruck,
     HiOutlineArrowTrendingUp,
     HiOutlineArrowTrendingDown,
+    HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -84,7 +85,7 @@ export default function DashboardPage() {
             color: 'stat-card-emerald',
             iconColor: 'text-emerald-500',
             valueColor: 'text-emerald-600',
-            path: '/sales?range=today'
+            path: '/sales?filter=today'
         },
         {
             label: t('dashboard.todayPayments'),
@@ -94,7 +95,7 @@ export default function DashboardPage() {
             color: 'stat-card-emerald',
             iconColor: 'text-emerald-500',
             valueColor: 'text-emerald-600',
-            path: '/reports/payments?range=today'
+            path: '/reports?type=payments&range=today'
         },
         {
             label: t('dashboard.creditGivenToday'),
@@ -104,7 +105,7 @@ export default function DashboardPage() {
             color: 'stat-card-rose',
             iconColor: 'text-red-500',
             valueColor: 'text-red-400',
-            path: '/sales?range=today&paymentMethod=CREDIT'
+            path: '/sales?filter=today&type=credit'
         },
         {
             label: t('dashboard.pendingLoan'),
@@ -114,7 +115,7 @@ export default function DashboardPage() {
             color: 'stat-card-rose',
             iconColor: 'text-red-500',
             valueColor: 'text-red-600',
-            path: '/customers?filter=due'
+            path: '/ledger?filter=pending'
         },
         {
             label: t('dashboard.lowStockItems'),
@@ -124,7 +125,7 @@ export default function DashboardPage() {
             color: 'stat-card-amber',
             iconColor: 'text-amber-500',
             valueColor: 'text-amber-600',
-            path: '/products?filter=low-stock'
+            path: '/inventory?filter=low-stock'
         },
         {
             label: t('dashboard.totalCustomers'),
@@ -153,19 +154,25 @@ export default function DashboardPage() {
                 {statCards.map((stat, idx) => (
                     <div
                         key={idx}
-                        className={`stat-card ${stat.color} group cursor-pointer hover:shadow-lg active:scale-[0.98] transition-all duration-200 border border-transparent hover:border-surface-600 focus:ring-2 focus:ring-primary-500 outline-none`}
+                        className={`stat-card ${stat.color} group cursor-pointer 
+                                   hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] 
+                                   transition-all duration-300 border border-transparent 
+                                   hover:border-surface-600/20 focus:ring-2 focus:ring-primary-500 outline-none`}
                         onClick={() => navigate(stat.path)}
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && navigate(stat.path)}
                     >
                         <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-sm text-surface-500 mb-1">{stat.label}</p>
+                            <div className="flex-1">
+                                <p className="text-sm text-surface-500 mb-1 flex items-center gap-1">
+                                    {stat.label}
+                                    <HiOutlineArrowRight className="w-3 h-3 translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-300" />
+                                </p>
                                 <p className={`text-2xl font-bold ${stat.valueColor}`}>{stat.value}</p>
                                 <p className="text-xs text-surface-500 mt-1">{stat.sub}</p>
                             </div>
                             <div className={`p-3 rounded-xl bg-gray-100 ${stat.iconColor} 
-                              group-hover:scale-110 transition-transform duration-300`}>
+                               group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-sm`}>
                                 <stat.icon className="w-6 h-6" />
                             </div>
                         </div>

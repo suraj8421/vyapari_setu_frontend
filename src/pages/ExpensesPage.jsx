@@ -24,8 +24,13 @@ import {
     HiOutlineChartPie,
     HiOutlineNoSymbol,
     HiOutlineArrowTrendingDown,
+    HiOutlineSparkles,
+    HiOutlineXMark,
+    HiOutlineCheck
 } from 'react-icons/hi2';
 import { toast } from 'react-hot-toast';
+import Modal from '../components/common/Modal';
+import SmartScanModal from '../components/common/SmartScanModal';
 import { expenseAPI } from '../services/api';
 import { getOrFetch } from '../utils/dataCache';
 import { resolveDateRange } from '../utils/dateUtils';
@@ -283,6 +288,15 @@ export default function ExpensesPage() {
     const [pagination, setPagination] = useState({ page: 1, total: 0, limit: 20 });
     const [loading, setLoading] = useState(true);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [form, setForm] = useState({
+        amount: '',
+        category: '',
+        note: '',
+        date: new Date().toISOString().split('T')[0]
+    });
 
     // Resolve preset date range to actual dates (uses the fixed dateUtils)
     useEffect(() => {
@@ -347,7 +361,23 @@ export default function ExpensesPage() {
     };
 
     // Navigate to Unified Entry with EXPENSE type pre-selected (via state)
-    const handleAddExpense = () => navigate('/entry');
+    const handleAddExpense = () => setIsCreateModalOpen(true);
+
+    const handleCreateExpense = async (e) => {
+        if (e) e.preventDefault();
+        setSaving(true);
+        try {
+            await expenseAPI.create(form);
+            toast.success('Expense recorded successfully');
+            setIsCreateModalOpen(false);
+            setForm({ amount: '', category: '', note: '', date: new Date().toISOString().split('T')[0] });
+            fetchExpenses();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to record expense');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     // ── Render ─────────────────────────────────────────────────────
     return (
@@ -377,12 +407,24 @@ export default function ExpensesPage() {
                         <HiOutlineArrowPath className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                     </button>
 
+                    {/* Smart Scan */}
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl
+                                   bg-surface-900 hover:bg-black text-white font-bold
+                                   text-xs uppercase tracking-widest transition-all shadow-xl shadow-surface-200"
+                    >
+                        <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
+                        Smart Scan
+                    </button>
+
                     {/* Add expense shortcut */}
                     <button
                         onClick={handleAddExpense}
                         className="flex items-center gap-2 px-4 py-2.5 rounded-xl
                                    bg-red-500 hover:bg-red-600 text-white font-bold
                                    text-sm transition-colors shadow-sm shadow-red-200"
+                        id="add-expense-btn"
                     >
                         <HiOutlinePlusCircle className="w-5 h-5" />
                         {t('expenses.addExpense')}
@@ -584,6 +626,68 @@ export default function ExpensesPage() {
                     </div>
                 </div>
             </div>
+            {/* Create Expense Modal */}
+            <Modal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                title="Record Expense"
+            >
+                <form onSubmit={handleCreateExpense} className="space-y-4">
+                    <div>
+                        <label className="text-xs font-black text-surface-400 uppercase tracking-widest block mb-2">Amount</label>
+                        <input 
+                            type="number" required
+                            value={form.amount} onChange={e => setForm({...form, amount: e.target.value})}
+                            className="w-full bg-surface-50 border border-surface-100 rounded-2xl px-4 py-3 text-lg font-black text-surface-900 outline-none focus:ring-2 focus:ring-primary-500" 
+                            placeholder="0.00"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-black text-surface-400 uppercase tracking-widest block mb-2">Category</label>
+                        <select 
+                            required
+                            value={form.category} onChange={e => setForm({...form, category: e.target.value})}
+                            className="w-full bg-surface-50 border border-surface-100 rounded-2xl px-4 py-3 font-bold text-surface-900 outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                            <option value="">Select Category</option>
+                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-black text-surface-400 uppercase tracking-widest block mb-2">Note / Description</label>
+                        <textarea 
+                            value={form.note} onChange={e => setForm({...form, note: e.target.value})}
+                            className="w-full bg-surface-50 border border-surface-100 rounded-2xl px-4 py-3 font-medium text-surface-900 outline-none focus:ring-2 focus:ring-primary-500 min-h-[80px]" 
+                            placeholder="Lunch, Electricity Bill, Rent..."
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-3 bg-surface-100 text-surface-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-surface-200 transition-all">Cancel</button>
+                        <button type="submit" disabled={saving} className="flex-1 py-3 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-200">
+                            {saving ? 'Saving...' : 'Record Expense'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Smart Scan Provider */}
+            <SmartScanModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                contextType="expense"
+                onScanComplete={(data) => {
+                    setForm(prev => ({
+                        ...prev,
+                        amount: data.price || prev.amount,
+                        note: data.name || prev.note,
+                        category: data.items?.[0]?.category || prev.category || 'General'
+                    }));
+                    setIsScannerOpen(false);
+                    setIsCreateModalOpen(true);
+                    toast.success("Intelligence Captured! Review your entry.");
+                }}
+            />
         </div>
     );
 }

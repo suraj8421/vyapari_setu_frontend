@@ -156,6 +156,18 @@ const hi = {
             b2bInvoices: 'बी2बी इनवॉइस',
         },
 
+        // ─── Stores ─────────────────────────────
+        stores: {
+            title: 'स्टोर',
+            addStore: 'स्टोर जोड़ें',
+            editStore: 'स्टोर संपादित करें',
+            storeName: 'स्टोर का नाम',
+            city: 'शहर',
+            state: 'राज्य',
+            pincode: 'पिन कोड',
+            gstNumber: 'GST नंबर',
+        },
+
         // ─── Products ───────────────────────────
         products: {
             title: 'उत्पाद',

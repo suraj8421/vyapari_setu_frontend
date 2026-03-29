@@ -81,6 +81,7 @@ export default function UnifiedEntryPage() {
         removePayment,
         handlePaymentChange,
         handleSubmit,
+        handleScannerAction,
     } = useUnifiedEntry();
 
     return (
@@ -133,6 +134,7 @@ export default function UnifiedEntryPage() {
                             onItemChange={handleItemChange}
                             onAddItem={addItem}
                             onRemoveItem={removeItem}
+                            onScannerAction={handleScannerAction}
                         />
                     )}
 
@@ -143,6 +145,7 @@ export default function UnifiedEntryPage() {
                             formData={formData}
                             type={type}
                             onChange={handleInputChange}
+                            onScannerAction={handleScannerAction}
                         />
                     )}
 

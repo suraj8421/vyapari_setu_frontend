@@ -5,7 +5,9 @@ import { getOrFetch } from '../utils/dataCache';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineSparkles } from 'react-icons/hi2';
+import SmartScanModal from '../components/common/SmartScanModal';
+import { toast } from 'react-hot-toast';
 
 export default function StoresPage() {
     const { t } = useTranslation();
@@ -15,6 +17,7 @@ export default function StoresPage() {
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const emptyForm = { name: '', address: '', city: '', state: '', pincode: '', phone: '', gstNumber: '' };
     const [form, setForm] = useState(emptyForm);
@@ -50,14 +53,23 @@ export default function StoresPage() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-surface-900">{t('stores.title')}</h1>
-                <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('stores.addStore')}</button>
+                <h1 className="text-2xl font-bold text-surface-900">{t('nav.stores')}</h1>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        className="btn-ghost text-primary-400 border border-primary-400/30 flex items-center gap-2"
+                    >
+                        <HiOutlineSparkles className="w-5 h-5" />
+                        Smart Scan
+                    </button>
+                    <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('stores.addStore')}</button>
+                </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? <div className="col-span-full"><LoadingSpinner /></div> : stores.length === 0 ? <div className="col-span-full text-center py-16 text-surface-500">{t('common.noData')}</div> :
                     stores.map(s => (
-                        <div key={s.id} className="glass-card-hover p-5">
-                            <h3 className="font-semibold text-surface-900 text-lg mb-2">{s.name}</h3>
+                        <div key={s.id} className="glass-card-hover p-5 border border-surface-700/50">
+                            <h3 className="font-bold text-surface-900 text-lg mb-2">{s.name}</h3>
                             <div className="space-y-1 text-sm text-surface-400 mb-4">
                                 <p>{s.address}, {s.city}</p>
                                 <p>{s.state} - {s.pincode}</p>
@@ -92,6 +104,23 @@ export default function StoresPage() {
                     </div>
                 </form>
             </Modal>
+
+            <SmartScanModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                contextType="store"
+                onScanComplete={(data) => {
+                    setForm(prev => ({
+                        ...prev,
+                        name: data.name || prev.name,
+                        address: data.address || prev.address,
+                        phone: data.phone || prev.phone
+                    }));
+                    setIsScannerOpen(false);
+                    setModalOpen(true);
+                    toast.success("Store details captured! Please refine and save.");
+                }}
+            />
         </div>
     );
 }

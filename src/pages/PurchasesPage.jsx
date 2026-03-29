@@ -6,7 +6,9 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineTrash, HiOutlineSparkles } from 'react-icons/hi2';
+import SmartScanModal from '../components/common/SmartScanModal';
+import { toast } from 'react-hot-toast';
 
 export default function PurchasesPage() {
     const { t } = useTranslation();
@@ -16,6 +18,7 @@ export default function PurchasesPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
@@ -78,6 +81,17 @@ export default function PurchasesPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-surface-900">{t('purchases.title')}</h1>
                 <button onClick={openNew} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('purchases.newPurchase')}</button>
+                <h1 className="text-2xl font-bold text-surface-900">{t('purchases.title')}</h1>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        className="btn-ghost text-primary-400 border border-primary-400/30 flex items-center gap-2"
+                    >
+                        <HiOutlineSparkles className="w-5 h-5" />
+                        Smart Scan
+                    </button>
+                    <button onClick={openNew} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('purchases.newPurchase')}</button>
+                </div>
             </div>
             <div className="glass-card overflow-hidden">
                 {loading ? <LoadingSpinner /> : purchases.length === 0 ? <div className="text-center py-16 text-surface-500">{t('common.noData')}</div> : (
@@ -136,6 +150,30 @@ export default function PurchasesPage() {
                     </div>
                 </form>
             </Modal>
+
+            <SmartScanModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                contextType="purchase"
+                onScanComplete={(data) => {
+                    // Logic similar to sales but for purchases
+                    const existing = products.find(p => p.barcode === data.barcode || p.name === data.name);
+                    if (existing) {
+                        const updated = [...items];
+                        if (updated[0].productId === '') {
+                            updated[0] = { ...updated[0], productId: existing.id, unitPrice: Number(existing.costPrice), gstRate: Number(existing.gstRate) };
+                            setItems(updated);
+                        } else {
+                            setItems([...updated, { productId: existing.id, quantity: data.quantity || 1, unitPrice: Number(existing.costPrice), gstRate: Number(existing.gstRate) }]);
+                        }
+                    } else {
+                        // Alert user or create placeholder
+                        toast.error("Product not found. Please add it first.");
+                    }
+                    setIsScannerOpen(false);
+                    setModalOpen(true);
+                }}
+            />
         </div>
     );
 }
