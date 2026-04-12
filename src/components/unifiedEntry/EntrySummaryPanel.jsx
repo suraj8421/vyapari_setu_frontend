@@ -29,7 +29,8 @@ const fmt = v => `₹ ${Number(v || 0).toFixed(2)}`;
 
 export default function EntrySummaryPanel({ 
     totals, formData, loading, onChange,
-    onAddPayment, onRemovePayment, onPaymentChange
+    onAddPayment, onRemovePayment, onPaymentChange,
+    onPaymentSettlement
 }) {
     const isGST = formData.invoiceType === 'GST';
     const remaining = totals.total - totals.paidAmount;
@@ -168,22 +169,40 @@ export default function EntrySummaryPanel({
                 </div>
 
                 {/* Submit button */}
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="
-                        w-full mt-8 py-4 rounded-2xl font-black text-lg
-                        bg-primary-500 hover:bg-primary-600 active:scale-95
-                        transition-all shadow-xl shadow-primary-500/20
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        flex items-center justify-center gap-3
-                    "
-                >
-                    {loading
-                        ? <><ArrowPathIcon className="w-6 h-6 animate-spin" /> Saving...</>
-                        : <><CheckCircleIcon className="w-6 h-6" /> Record Transaction</>
-                    }
-                </button>
+                <div className="mt-8 space-y-3">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="
+                            w-full py-4 rounded-2xl font-black text-lg
+                            bg-primary-500 hover:bg-primary-600 active:scale-95
+                            transition-all shadow-xl shadow-primary-500/20
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                            flex items-center justify-center gap-3
+                        "
+                    >
+                        {loading
+                            ? <><ArrowPathIcon className="w-6 h-6 animate-spin" /> Saving...</>
+                            : <><CheckCircleIcon className="w-6 h-6" /> Record Transaction</>
+                        }
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={onPaymentSettlement}
+                        disabled={loading || totals.total <= 0}
+                        className="
+                            w-full py-4 rounded-2xl font-black text-lg text-white
+                            bg-blue-600 hover:bg-blue-700 active:scale-95
+                            transition-all shadow-xl shadow-blue-600/20
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                            flex items-center justify-center gap-3
+                        "
+                        title="Fully bypass the ledger and instantly process as a fully paid cash/selected payment transaction"
+                    >
+                        <CheckCircleIcon className="w-6 h-6" /> 1-Click Pay & Settle
+                    </button>
+                </div>
             </div>
 
             {/* ── ERP Smart Alerts ─────────────────────────────── */}

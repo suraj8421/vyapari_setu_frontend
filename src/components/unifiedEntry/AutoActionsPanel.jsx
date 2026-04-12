@@ -27,8 +27,8 @@ const ACTION_OPTIONS = [
     {
         id: 'generateInvoice',
         emoji: '🧾',
-        label: 'Generate PDF Invoice',
-        desc: 'Download a professional invoice document ready for printing',
+        label: 'View & Generate Invoice',
+        desc: 'Review the invoice before choosing to download, print, or share',
     },
     {
         id: 'sendToCustomer',

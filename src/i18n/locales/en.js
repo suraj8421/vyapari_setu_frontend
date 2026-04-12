@@ -86,6 +86,14 @@ const en = {
             loginTitle: 'Welcome Back',
             signUp: 'Sign Up',
             loggingIn: 'Signing in...',
+            firstName: 'First Name',
+            lastName: 'Last Name',
+            signupTitle: 'Create Account',
+            signupSubtitle: 'Join Vyaparisetu to manage your business',
+            alreadyHaveAccount: 'Already have an account?',
+            signingUp: 'Creating account...',
+            register: 'Register',
+            employeeId: 'Employee ID (Onboarding Agent Code)',
         },
 
         // ─── Dashboard ──────────────────────────
@@ -148,6 +156,7 @@ const en = {
             suppliers: 'Suppliers',
             stores: 'Stores',
             users: 'Users',
+            staff: 'Staff Management',
             reports: 'Reports',
             expenses: 'Expenses',
             approvals: 'Approvals',

@@ -14,6 +14,8 @@ import {
     HiOutlineInformationCircle
 } from 'react-icons/hi2';
 import { useSmartScan } from '../../hooks/useSmartScan';
+import { useState as useLocalState } from 'react';
+import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
 
 /**
  * SmartScanModal - Context-Aware Scanning UI
@@ -26,6 +28,8 @@ export default function SmartScanModal({ isOpen, onClose, contextType, onScanCom
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState('camera');
     const [scanResult, setScanResult] = useState(null);
+    const [checklistItems, setChecklistItems] = useState(null); // for multi-item doc scans
+    const [docMetadata, setDocMetadata] = useState(null); // supplier name / date from doc
     const cameraRef = useRef(null);
     const html5QrCodeRef = useRef(null);
 
@@ -42,15 +46,17 @@ export default function SmartScanModal({ isOpen, onClose, contextType, onScanCom
         handleFileUpload
     } = useSmartScan({
         contextType,
-        onScanComplete: (data) => {
-            setScanResult(data);
-            // Optionally auto-close if it's a simple barcode hit
-            if (data.barcode && activeTab === 'camera') {
-                // Keep open to show success or auto-apply? 
-                // The requirement says "Auto close modal"
-                setTimeout(() => {
-                    handleApply(data);
-                }, 1000);
+        onScanComplete: (actionOrData, itemsPayload, metadata) => {
+            // Multi-item bulk import from document scan
+            if (actionOrData === 'BULK_IMPORT' && Array.isArray(itemsPayload)) {
+                setChecklistItems(itemsPayload.map(item => ({ ...item, checked: true })));
+                setDocMetadata(metadata || null);
+            } else {
+                // Single item scan result
+                setScanResult(actionOrData);
+                if (actionOrData?.barcode && activeTab === 'camera') {
+                    setTimeout(() => { handleApply(actionOrData); }, 1000);
+                }
             }
         }
     });
@@ -115,6 +121,18 @@ export default function SmartScanModal({ isOpen, onClose, contextType, onScanCom
         onScanComplete?.(data || scanResult);
         onClose();
         setScanResult(null);
+        setChecklistItems(null);
+    };
+
+    const handleApplyChecklist = () => {
+        const selected = checklistItems.filter(item => item.checked);
+        if (selected.length === 0) return;
+        // Fire the BULK_IMPORT action to the parent page, including doc metadata (supplier name etc.)
+        onScanComplete?.('BULK_IMPORT', selected, docMetadata);
+        onClose();
+        setScanResult(null);
+        setChecklistItems(null);
+        setDocMetadata(null);
     };
 
     if (!isOpen) return null;
@@ -321,6 +339,118 @@ export default function SmartScanModal({ isOpen, onClose, contextType, onScanCom
                                 </div>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* ── Checklist Overlay (for multi-item document scans) ── */}
+                {checklistItems && (
+                    <div className="absolute inset-0 bg-white z-10 flex flex-col">
+                        {/* Checklist Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
+                            <div>
+                                <h3 className="text-lg font-black text-surface-900 tracking-tight">📋 Scanned Items</h3>
+                                <p className="text-xs text-surface-400 font-medium">
+                                    {checklistItems.filter(i => i.checked).length} of {checklistItems.length} selected
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setChecklistItems(prev => [...prev, {
+                                        name: '', quantity: 1, unit: 'PCS',
+                                        unitPrice: 0, costPrice: 0, checked: true
+                                    }]);
+                                }}
+                                className="flex items-center gap-2 bg-primary-50 text-primary-700 text-xs font-bold px-3 py-2 rounded-xl hover:bg-primary-100 transition-all"
+                            >
+                                <HiOutlinePlus className="w-4 h-4" /> Add Item
+                            </button>
+                        </div>
+
+                        {/* Scrollable Item List */}
+                        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                            {checklistItems.map((item, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                                        item.checked
+                                            ? 'border-emerald-200 bg-emerald-50'
+                                            : 'border-surface-200 bg-surface-50 opacity-60'
+                                    }`}
+                                >
+                                    {/* Checkbox */}
+                                    <input
+                                        type="checkbox"
+                                        checked={item.checked}
+                                        onChange={() => {
+                                            setChecklistItems(prev => prev.map((it, i) =>
+                                                i === idx ? { ...it, checked: !it.checked } : it
+                                            ));
+                                        }}
+                                        className="w-5 h-5 rounded accent-emerald-500 shrink-0 cursor-pointer"
+                                    />
+
+                                    {/* Item Details (editable) */}
+                                    <div className="flex-1 min-w-0">
+                                        <input
+                                            type="text"
+                                            value={item.name || ''}
+                                            placeholder="Item name..."
+                                            onChange={e => setChecklistItems(prev => prev.map((it, i) =>
+                                                i === idx ? { ...it, name: e.target.value } : it
+                                            ))}
+                                            className="w-full text-sm font-bold text-surface-900 bg-transparent outline-none border-b border-transparent focus:border-emerald-400 pb-0.5"
+                                        />
+                                        <div className="flex gap-4 mt-1">
+                                            <span className="text-[10px] text-surface-400">
+                                                Qty: <input
+                                                    type="number"
+                                                    value={item.quantity || ''}
+                                                    onChange={e => setChecklistItems(prev => prev.map((it, i) =>
+                                                        i === idx ? { ...it, quantity: Number(e.target.value) } : it
+                                                    ))}
+                                                    className="w-12 inline bg-transparent font-bold text-surface-700 outline-none"
+                                                />
+                                            </span>
+                                            <span className="text-[10px] text-surface-400">
+                                                Price: ₹<input
+                                                    type="number"
+                                                    value={item.unitPrice || item.costPrice || ''}
+                                                    onChange={e => setChecklistItems(prev => prev.map((it, i) =>
+                                                        i === idx ? { ...it, unitPrice: Number(e.target.value), costPrice: Number(e.target.value) } : it
+                                                    ))}
+                                                    className="w-16 inline bg-transparent font-bold text-emerald-600 outline-none"
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Remove Button */}
+                                    <button
+                                        onClick={() => setChecklistItems(prev => prev.filter((_, i) => i !== idx))}
+                                        className="p-1.5 text-surface-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                    >
+                                        <HiOutlineTrash className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Confirm Footer */}
+                        <div className="px-6 py-4 border-t border-surface-100 flex gap-3">
+                            <button
+                                onClick={() => { setChecklistItems(null); }}
+                                className="flex-1 py-3 bg-surface-100 text-surface-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-surface-200 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleApplyChecklist}
+                                disabled={checklistItems.filter(i => i.checked).length === 0}
+                                className="flex-1 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
+                            >
+                                ✅ Import {checklistItems.filter(i => i.checked).length} Items
+                            </button>
+                        </div>
                     </div>
                 )}
 

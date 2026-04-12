@@ -75,7 +75,7 @@ export default function OnboardingForm({ onClose, onComplete, initialData }) {
         const plan = plans.find(p => p.id === planId);
         if (plan) {
             setFormData(prev => ({
-                ...prev, planId: plan.id, planDuration: plan.durationMonths, planPrice: plan.price
+                ...prev, planId: plan.id, planDuration: plan.durationMonths, planPrice: (plan.price / 100).toString()
             }));
         }
     };
@@ -105,7 +105,16 @@ export default function OnboardingForm({ onClose, onComplete, initialData }) {
         if (submitStatus !== 'DRAFT' && !validateStep()) return;
         setIsLoading(true);
         try {
-            const payload = { ...formData, status: submitStatus };
+            const payload = { 
+                ...formData, 
+                status: submitStatus,
+                // Convert back to paisa for database
+                planPrice: Math.round(parseFloat(formData.planPrice) * 100),
+                discountAmount: Math.round(parseFloat(formData.discountAmount) * 100),
+                totalAmount: Math.round(parseFloat(formData.totalAmount) * 100),
+                amountReceived: Math.round(parseFloat(formData.amountReceived) * 100),
+                dueAmount: Math.round(parseFloat(formData.dueAmount) * 100),
+            };
             const method = payload.id ? 'PUT' : 'POST';
             const url = payload.id ? `${API_URL}/onboarding/${payload.id}` : `${API_URL}/onboarding`;
             
@@ -180,7 +189,7 @@ export default function OnboardingForm({ onClose, onComplete, initialData }) {
                             {plans.map(p => (
                                 <div key={p.id} onClick={() => handlePlanSelect(p.id)} className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${formData.planId === p.id ? 'border-orange-500 bg-orange-50 shadow-md scale-[1.02]' : 'border-gray-100 hover:border-orange-200 hover:bg-orange-50/30'}`}>
                                     <h4 className="font-black text-surface-900">{p.name}</h4>
-                                    <p className="text-2xl font-black text-orange-600 mt-2">₹{p.price}</p>
+                                    <p className="text-2xl font-black text-orange-600 mt-2">₹{p.price / 100}</p>
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">{p.durationMonths} Months Access</p>
                                 </div>
                             ))}

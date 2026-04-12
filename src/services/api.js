@@ -105,6 +105,7 @@ export const productAPI = {
     getCategories: () => api.get('/products/categories'),
     getLowStock: () => api.get('/products/low-stock'),
     getMovementHistory: (id) => api.get(`/products/${id}/movement`),
+    adjustStock: (id, data) => api.post(`/products/${id}/adjust`, data),
 };
 
 // Sales
@@ -264,6 +265,13 @@ export const saReportsAPI = {
     exportEmployees: () => api.get('/employees/export', { responseType: 'blob' }),
     exportPayments: () => api.get('/sa-users/payments/export', { responseType: 'blob' }),
     exportSubscriptions: () => api.get('/sa-users/subscriptions/export', { responseType: 'blob' }),
+};
+
+// Hybrid Payment API
+export const paymentAPI = {
+    createOrder: (data) => api.post('/payments/create-order', data),
+    verifyPayment: (data) => api.post('/payments/verify-payment', data),
+    getPublicCustomer: (id) => api.get(`/payments/public/customer/${id}`),
 };
 
 export default api;

@@ -12,8 +12,46 @@ import {
     HiOutlineCog6Tooth,
     HiOutlineArrowRightOnRectangle
 } from 'react-icons/hi2';
+import { saLeadsAPI } from '../../services/api';
+import { useEffect } from 'react';
+import { useSocket } from '../../context/SocketContext';
 
 export default function SASidebar({ isOpen, onClose }) {
+    const [hasNewLeads, setHasNewLeads] = useState(false);
+    const { socket } = useSocket();
+
+    const checkNewLeads = async () => {
+        try {
+            // Get NEW leads count to show notification dot
+            const res = await saLeadsAPI.getAll({ status: 'NEW', limit: 1 });
+            if (res.data.success && res.data.pagination.total > 0) {
+                setHasNewLeads(true);
+            } else {
+                setHasNewLeads(false);
+            }
+        } catch (err) {
+            console.error('New leads check failed:', err);
+        }
+    };
+
+    useEffect(() => {
+        checkNewLeads();
+        
+        if (socket) {
+            socket.on('leads_updated', checkNewLeads);
+        }
+
+        // Still keep fallback polling (longer interval)
+        const interval = setInterval(checkNewLeads, 5 * 60 * 1000);
+        
+        return () => {
+            clearInterval(interval);
+            if (socket) {
+                socket.off('leads_updated', checkNewLeads);
+            }
+        };
+    }, [socket]);
+
     const navItems = [
         { to: '/superadmin/dashboard', icon: HiOutlineChartBarSquare, label: 'Dashboard Overview' },
         { to: '/superadmin/users', icon: HiOutlineUsers, label: 'Users / Clients' },
@@ -83,6 +121,9 @@ export default function SASidebar({ isOpen, onClose }) {
                         >
                             <item.icon className={`w-5 h-5 flex-shrink-0`} />
                             <span className="flex-1">{item.label}</span>
+                            {item.label === 'Leads CRM' && hasNewLeads && (
+                                <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+                            )}
                         </NavLink>
                     ))}
                 </nav>

@@ -124,7 +124,16 @@ export default function PurchasesPage() {
                     </div>
                     {items.map((item, idx) => (
                         <div key={idx} className="grid grid-cols-12 gap-2 p-3 rounded-xl bg-surface-800/30">
-                            <div className="col-span-4"><select className="select-field py-2" value={item.productId} onChange={e => updateItem(idx, 'productId', e.target.value)} required><option value="">--</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                            <div className="col-span-4">
+                                <select className="select-field py-2" value={item.productId} onChange={e => updateItem(idx, 'productId', e.target.value)} required>
+                                    <option value="">{item._scannedName || '--'}</option>
+                                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                                {/* Show scanned name hint when product isn't matched yet */}
+                                {!item.productId && item._scannedName && (
+                                    <p className="text-[10px] text-amber-500 mt-0.5 truncate">📄 {item._scannedName}</p>
+                                )}
+                            </div>
                             <div className="col-span-2"><input type="number" min="1" className="input-field py-2" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></div>
                             <div className="col-span-2"><input type="number" step="0.01" className="input-field py-2" value={item.unitPrice} onChange={e => updateItem(idx, 'unitPrice', e.target.value)} /></div>
                             <div className="col-span-3">
@@ -155,20 +164,143 @@ export default function PurchasesPage() {
                 isOpen={isScannerOpen}
                 onClose={() => setIsScannerOpen(false)}
                 contextType="purchase"
-                onScanComplete={(data) => {
-                    // Logic similar to sales but for purchases
-                    const existing = products.find(p => p.barcode === data.barcode || p.name === data.name);
+                onScanComplete={async (actionOrData, itemsPayload, docMeta) => {
+                    // ── Load fresh suppliers & products first ──────────────────────────────
+                    let freshProducts = products;
+                    let freshSuppliers = suppliers;
+                    if (freshProducts.length === 0 || freshSuppliers.length === 0) {
+                        try {
+                            const [p, s] = await Promise.all([
+                                getOrFetch('products', () => productAPI.getAll({ limit: 200 }).then(r => r.data.data || [])),
+                                getOrFetch('suppliers', () => supplierAPI.getAll({ limit: 100 }).then(r => r.data.data || [])),
+                            ]);
+                            freshProducts = p || [];
+                            freshSuppliers = s || [];
+                            setProducts(freshProducts);
+                            setSuppliers(freshSuppliers);
+                        } catch (err) { console.error(err); }
+                    }
+
+                    // ── BULK_IMPORT from document scan ─────────────────────────────────────
+                    if (actionOrData === 'BULK_IMPORT' && Array.isArray(itemsPayload)) {
+                        toast.loading('Synchronizing product database...', { id: 'scan-process' });
+                        
+                        // 1. Resolve/Create Supplier (Sequential)
+                        let resolvedSupplierId = form.supplierId;
+                        const scannedSupplierName = docMeta?.supplierName;
+                        if (scannedSupplierName) {
+                            const existingSup = freshSuppliers.find(
+                                s => s.name?.toLowerCase() === scannedSupplierName.toLowerCase()
+                            );
+                            if (existingSup) {
+                                resolvedSupplierId = existingSup.id;
+                            } else {
+                                try {
+                                    const newSup = await supplierAPI.create({
+                                        name: scannedSupplierName,
+                                        storeId: user?.storeId,
+                                    });
+                                    const created = newSup.data?.data || newSup.data;
+                                    if (created?.id) {
+                                        freshSuppliers = [...freshSuppliers, created];
+                                        setSuppliers(freshSuppliers);
+                                        resolvedSupplierId = created.id;
+                                        toast.success(`Registered supplier: ${scannedSupplierName}`, { icon: '🏢' });
+                                    }
+                                } catch (err) { console.error('Supplier creation failed', err); }
+                            }
+                        }
+
+                        // 2. Resolve/Create Products (Sequential)
+                        const finalProcessedItems = [];
+                        for (const item of itemsPayload) {
+                            let matched = freshProducts.find(
+                                p => (item.barcode && p.barcode === item.barcode) || 
+                                     (item.name && p.name?.toLowerCase() === item.name?.toLowerCase())
+                            );
+
+                            // If not in local list, check backend via search before creating
+                            if (!matched && item.name) {
+                                try {
+                                    const searchRes = await productAPI.getAll({ search: item.name, limit: 1 });
+                                    const found = searchRes.data?.data?.[0] || searchRes.data?.[0];
+                                    if (found) { 
+                                        matched = found; 
+                                        // CRITICAL: Add to local list so the dropdown has this option to display!
+                                        if (!freshProducts.find(p => p.id === matched.id)) {
+                                            freshProducts = [...freshProducts, matched];
+                                        }
+                                    }
+                                } catch (e) { /* silent search fail */ }
+                            }
+
+                            // If still not found, create new
+                            if (!matched && item.name) {
+                                try {
+                                    const res = await productAPI.create({
+                                        name: item.name,
+                                        sku: `SCAN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                                        costPrice: Math.max(0.01, Number(item.costPrice || item.unitPrice || 0.01)),
+                                        sellingPrice: Math.max(0.01, Number(item.sellingPrice || item.unitPrice || item.costPrice || 0.01)),
+                                        unit: (item.unit || 'PCS').toUpperCase(),
+                                        category: item.category || 'General',
+                                        gstRate: Math.min(100, Math.max(0, Number(item.gstRate || 0))),
+                                        barcode: item.barcode || '',
+                                        storeId: user?.storeId,
+                                        initialStock: 0,
+                                    });
+                                    const created = res.data?.data || res.data;
+                                    if (created?.id) {
+                                        matched = created;
+                                        if (!freshProducts.find(p => p.id === matched.id)) {
+                                            freshProducts = [...freshProducts, matched];
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('API Error Details:', err.response?.data);
+                                    // If creation failed (maybe it exists but search missed it), try one last lookup by name
+                                    try {
+                                        const finalSearch = await productAPI.getAll({ limit: 100 });
+                                        const fallback = (finalSearch.data?.data || finalSearch.data).find(p => p.name?.toLowerCase() === item.name?.toLowerCase());
+                                        if (fallback) { matched = fallback; }
+                                    } catch (e) {}
+                                    console.warn('Auto-product creation failed for:', item.name, err);
+                                }
+                            }
+
+                            finalProcessedItems.push({
+                                productId: matched?.id || '',
+                                quantity: Number(item.quantity) || 1,
+                                unitPrice: matched ? Number(matched.costPrice) : Number(item.unitPrice || item.costPrice || 0),
+                                gstRate: matched ? Number(matched.gstRate) : Number(item.gstRate || 0),
+                                _scannedName: item.name || '',
+                            });
+                        }
+
+                        // Final state sync
+                        setProducts(freshProducts);
+                        setItems(finalProcessedItems.length ? finalProcessedItems : [{ productId: '', quantity: 1, unitPrice: 0, gstRate: 0 }]);
+                        setForm(prev => ({ ...prev, supplierId: resolvedSupplierId }));
+                        
+                        toast.dismiss('scan-process');
+                        toast.success('Document sync complete!');
+                        setIsScannerOpen(false);
+                        setModalOpen(true);
+                        return;
+                    }
+
+                    // ── Single barcode/camera scan ─────────────────────────────────────────
+                    const existing = freshProducts.find(p => p.barcode === actionOrData?.barcode || p.name === actionOrData?.name);
                     if (existing) {
                         const updated = [...items];
                         if (updated[0].productId === '') {
                             updated[0] = { ...updated[0], productId: existing.id, unitPrice: Number(existing.costPrice), gstRate: Number(existing.gstRate) };
                             setItems(updated);
                         } else {
-                            setItems([...updated, { productId: existing.id, quantity: data.quantity || 1, unitPrice: Number(existing.costPrice), gstRate: Number(existing.gstRate) }]);
+                            setItems([...updated, { productId: existing.id, quantity: actionOrData.quantity || 1, unitPrice: Number(existing.costPrice), gstRate: Number(existing.gstRate) }]);
                         }
                     } else {
-                        // Alert user or create placeholder
-                        toast.error("Product not found. Please add it first.");
+                        toast.error('Product not found. Please select it manually.');
                     }
                     setIsScannerOpen(false);
                     setModalOpen(true);

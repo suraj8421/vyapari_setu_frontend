@@ -24,23 +24,25 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { generateInvoicePDF } from '../utils/pdfGenerator';
 import {
     HiOutlinePlus,
     HiOutlineTrash,
     HiOutlineMagnifyingGlass,
     HiOutlineFunnel,
-    // NEW: Icons for the return flow
     HiOutlineArrowUturnLeft,
     HiOutlineExclamationTriangle,
     HiOutlineCheckCircle,
     HiOutlineArrowPath,
     HiOutlineDocumentArrowDown,
-    HiOutlineSparkles
+    HiOutlineSparkles,
+    HiOutlineDocumentText,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 import SmartScanModal from '../components/common/SmartScanModal';
 import { resolveDateRange } from '../utils/dateUtils';
 
-// ── Sale Status Badge ──────────────────────────────────────────────
+import InvoiceViewModal from '../components/common/InvoiceViewModal';// ── Sale Status Badge ──────────────────────────────────────────────
 // Status-to-CSS mapping. Only values defined in the `SaleStatus` Prisma enum
 // are listed here. PENDING and CANCELLED are intentionally omitted — they do
 // not exist in the schema and can never be stored in the database.
@@ -62,16 +64,41 @@ function StatusBadge({ status }) {
 }
 
 // ── Return Confirmation Modal ──────────────────────────────────────
-// NEW: Allows admin/staff to:
-//   - Choose RETURNED (full) or PARTIAL_RETURN
-//   - Enter a reason so it appears in the audit log
-//   - See the sale invoice number they're returning
+// Replaced full/partial radio buttons with a per-item checklist.
+// Selecting all items automatically becomes a RETURNED (full), otherwise PARTIAL_RETURN.
 function ReturnModal({ sale, onConfirm, onClose, loading }) {
     const { t } = useTranslation();
-    const [returnType, setReturnType] = useState('RETURNED');
     const [notes, setNotes] = useState('');
+    const [selectedItems, setSelectedItems] = useState(
+        () => (sale?.items || []).map(item => item.id)
+    );
 
     if (!sale) return null;
+
+    const allSelected = selectedItems.length === (sale.items || []).length;
+
+    const toggleAll = () => {
+        if (allSelected) {
+            setSelectedItems([]);
+        } else {
+            setSelectedItems((sale.items || []).map(item => item.id));
+        }
+    };
+
+    const toggleItem = (id) => {
+        setSelectedItems(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleConfirm = () => {
+        if (selectedItems.length === 0) return;
+        const status = allSelected ? 'RETURNED' : 'PARTIAL_RETURN';
+        onConfirm(status, notes, selectedItems);
+    };
+
+    const formatCurrency = val =>
+        new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val || 0);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -79,7 +106,7 @@ function ReturnModal({ sale, onConfirm, onClose, loading }) {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
             >
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-5">
@@ -97,58 +124,85 @@ function ReturnModal({ sale, onConfirm, onClose, loading }) {
                 </div>
 
                 {/* Stock restore notice */}
-                <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 mb-5 text-xs text-blue-700">
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 mb-4 text-xs text-blue-700">
                     <HiOutlineCheckCircle className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
-                    <span>
-                        {t('sales.stockRestoreNotice')}
-                    </span>
+                    <span>Stock will be automatically restored for selected items once the return is confirmed.</span>
                 </div>
 
-                <div className="mb-4">
-                    <label className="text-sm font-semibold text-surface-700 block mb-2">
-                        {t('common.status') || t('nav.approvals')}
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                        {[
-                            { value: 'RETURNED', label: `↩ ${t('sales.fullReturn')}`, desc: t('sales.returnDescFull') },
-                            { value: 'PARTIAL_RETURN', label: `↵ ${t('sales.partialReturn')}`, desc: t('sales.returnDescPartial') },
-                        ].map(opt => (
-                            <div
-                                key={opt.value}
-                                onClick={() => setReturnType(opt.value)}
-                                className={`
-                                    p-3 rounded-xl border-2 cursor-pointer transition-all
-                                    ${returnType === opt.value
-                                        ? 'border-orange-400 bg-orange-50'
-                                        : 'border-gray-100 hover:border-gray-200'}
-                                `}
-                            >
-                                <p className="font-bold text-sm text-surface-900">{opt.label}</p>
-                                <p className="text-xs text-surface-500 mt-0.5">{opt.desc}</p>
-                            </div>
-                        ))}
-                    </div>
+                {/* Select All Row */}
+                <div className="flex items-center justify-between mb-2 px-1">
+                    <span className="text-sm font-semibold text-surface-700">Select Items to Return</span>
+                    <button
+                        type="button"
+                        onClick={toggleAll}
+                        className="text-xs font-bold text-orange-500 hover:text-orange-600 transition-colors"
+                    >
+                        {allSelected ? 'Deselect All' : 'Select All'}
+                    </button>
                 </div>
+
+                {/* Item Checklist */}
+                <div className="space-y-2 mb-4 max-h-52 overflow-y-auto pr-1">
+                    {(sale.items || []).map((item) => {
+                        const checked = selectedItems.includes(item.id);
+                        const productName = item.product?.name || item.productName || `Item #${item.id?.slice(-4)}`;
+                        return (
+                            <label
+                                key={item.id}
+                                className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all
+                                    ${checked ? 'border-orange-400 bg-orange-50' : 'border-gray-100 hover:border-gray-200'}`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleItem(item.id)}
+                                    className="w-4 h-4 accent-orange-500 rounded shrink-0"
+                                />
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-sm text-surface-900 truncate">{productName}</p>
+                                    <p className="text-xs text-surface-500">
+                                        Qty: {item.quantity} · {formatCurrency(item.unitPrice)} each
+                                    </p>
+                                </div>
+                                <span className="text-sm font-bold text-surface-800">
+                                    {formatCurrency(item.total || item.quantity * item.unitPrice)}
+                                </span>
+                            </label>
+                        );
+                    })}
+                </div>
+
+                {/* Auto-detected return type badge */}
+                {selectedItems.length > 0 && (
+                    <div className={`text-xs font-bold px-3 py-2 rounded-lg mb-4 ${
+                        allSelected ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-orange-50 text-orange-600 border border-orange-100'
+                    }`}>
+                        {allSelected
+                            ? '↩ Full Return — all items will be returned'
+                            : `↵ Partial Return — ${selectedItems.length} of ${sale.items?.length} item(s) selected`
+                        }
+                    </div>
+                )}
 
                 {/* Reason / notes */}
-                <div className="mb-5">
+                <div className="mb-4">
                     <label className="text-sm font-semibold text-surface-700 block mb-2">
-                        {t('sales.returnReason')} <span className="text-surface-400 font-normal">({t('common.optional') || 'optional'})</span>
+                        {t('sales.returnReason')} <span className="text-surface-400 font-normal">(Optional)</span>
                     </label>
                     <textarea
                         value={notes}
                         onChange={e => setNotes(e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                                   outline-none focus:ring-2 focus:ring-orange-300 min-h-[72px]
+                                   outline-none focus:ring-2 focus:ring-orange-300 min-h-[60px]
                                    resize-none"
-                        placeholder={t('sales.returnReasonPlaceholder')}
+                        placeholder="e.g. Damaged goods, customer changed mind"
                     />
                 </div>
 
                 {/* Warning */}
-                <div className="flex items-center gap-2 mb-6 p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
+                <div className="flex items-center gap-2 mb-5 p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
                     <HiOutlineExclamationTriangle className="w-4 h-4 shrink-0 text-amber-500" />
-                    {t('sales.returnWarning') || 'This action cannot be undone. The sale status will be permanently changed.'}
+                    This action cannot be undone. The sale status will be permanently changed.
                 </div>
 
                 {/* Actions */}
@@ -162,8 +216,8 @@ function ReturnModal({ sale, onConfirm, onClose, loading }) {
                         {t('common.cancel')}
                     </button>
                     <button
-                        onClick={() => onConfirm(returnType, notes)}
-                        disabled={loading}
+                        onClick={handleConfirm}
+                        disabled={loading || selectedItems.length === 0}
                         className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600
                                    text-white font-bold text-sm transition-colors
                                    disabled:opacity-50 flex items-center justify-center gap-2"
@@ -172,7 +226,7 @@ function ReturnModal({ sale, onConfirm, onClose, loading }) {
                             ? <HiOutlineArrowPath className="w-4 h-4 animate-spin" />
                             : <HiOutlineArrowUturnLeft className="w-4 h-4" />
                         }
-                        {t('sales.confirm')}
+                        {t('sales.confirm')} ({selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''})
                     </button>
                 </div>
             </motion.div>
@@ -204,9 +258,11 @@ export default function SalesPage() {
     const [saving, setSaving] = useState(false);
 
     // NEW: Return modal state
-    // returnTarget holds the full sale object so the modal can show invoice/customer
     const [returnTarget, setReturnTarget] = useState(null);
     const [returnLoading, setReturnLoading] = useState(false);
+
+    // Invoice view modal state
+    const [invoiceTarget, setInvoiceTarget] = useState(null);
 
     // Form data for new sale
     const [products, setProducts] = useState([]);
@@ -346,24 +402,21 @@ export default function SalesPage() {
         }
     };
 
-    // ── NEW: Return Handler ────────────────────────────────────────
+    // ── Return Handler ────────────────────────────────────────────
     // Called when admin confirms the return in ReturnModal.
-    // Calls PATCH /api/sales/:id/status — added to backend in prev session.
-    // Backend automatically restores stock for all returned items.
-    const handleReturnConfirm = async (status, notes) => {
+    // Now receives selectedItems (array of item IDs) to support item-level partial returns.
+    const handleReturnConfirm = async (status, notes, selectedItemIds) => {
         if (!returnTarget) return;
         setReturnLoading(true);
         try {
-            await saleAPI.updateStatus(returnTarget.id, { status, notes });
-            // Update the row in-place so the table reflects new status immediately
-            // without needing a full refetch
+            await saleAPI.updateStatus(returnTarget.id, { status, notes, returnedItemIds: selectedItemIds });
             setSales(prev =>
                 prev.map(s => s.id === returnTarget.id ? { ...s, status } : s)
             );
             toast.success(
                 status === 'RETURNED'
                     ? `↩ Sale ${returnTarget.invoiceNumber} fully returned. Stock restored.`
-                    : `↵ Sale ${returnTarget.invoiceNumber} marked as partial return.`
+                    : `↵ Sale ${returnTarget.invoiceNumber} — partial return processed.`
             );
             setReturnTarget(null);
         } catch (err) {
@@ -387,10 +440,15 @@ export default function SalesPage() {
             const customer = (sale.customer?.name || 'Walk-in Customer').replace(/"/g, '""');
             const status = sale.status || 'PENDING';
             const method = sale.paymentMethod || '';
-            const total = sale.totalAmount || 0;
+            
+            const returnedAmount = (sale.items || [])
+                .filter(item => item.returned === true)
+                .reduce((sum, item) => sum + Number(item.total || 0), 0);
+            const netTotal = Number(sale.totalAmount || 0) - returnedAmount;
+            
             const paid = sale.paidAmount || 0;
 
-            csv += `"${invoice}","${dateStr}","${customer}","${status}","${method}",${total},${paid}\n`;
+            csv += `"${invoice}","${dateStr}","${customer}","${status}","${method}",${netTotal},${paid}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -505,10 +563,21 @@ export default function SalesPage() {
                                     // A sale can only be returned if it's COMPLETED or PARTIAL_RETURN
                                     const canReturn = sale.status === 'COMPLETED' || sale.status === 'PARTIAL_RETURN';
 
+                                    const returnedAmount = (sale.items || [])
+                                        .filter(item => item.returned === true)
+                                        .reduce((sum, item) => sum + Number(item.total || 0), 0);
+                                    const netTotal = Number(sale.totalAmount || 0) - returnedAmount;
+
                                     return (
                                         <tr key={sale.id}>
                                             <td>
-                                                <span className="badge-info">{sale.invoiceNumber}</span>
+                                                <button
+                                                    onClick={() => setInvoiceTarget(sale)}
+                                                    className="badge-info hover:bg-primary-200 transition-colors cursor-pointer text-left"
+                                                    title="Click to view invoice"
+                                                >
+                                                    {sale.invoiceNumber}
+                                                </button>
                                             </td>
                                             <td className="text-xs">
                                                 {new Date(sale.createdAt).toLocaleDateString('en-IN')}
@@ -516,7 +585,14 @@ export default function SalesPage() {
                                             <td>{sale.customer?.name || '-'}</td>
                                             <td>{sale.items?.length || 0}</td>
                                             <td className="font-semibold text-emerald-400">
-                                                {formatCurrency(sale.totalAmount)}
+                                                {returnedAmount > 0 ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] text-gray-400 line-through">{formatCurrency(sale.totalAmount)}</span>
+                                                        <span>{formatCurrency(netTotal)}</span>
+                                                    </div>
+                                                ) : (
+                                                    formatCurrency(sale.totalAmount)
+                                                )}
                                             </td>
                                             <td>{formatCurrency(sale.paidAmount)}</td>
                                             <td>
@@ -691,7 +767,17 @@ export default function SalesPage() {
                 </form>
             </Modal>
 
-            {/* ── NEW: Return Confirmation Modal ─────────────────── */}
+            {/* ── Invoice View Modal ───────────────────────────────── */}
+            <AnimatePresence>
+                {invoiceTarget && (
+                    <InvoiceViewModal
+                        sale={invoiceTarget}
+                        onClose={() => setInvoiceTarget(null)}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* ── Return Confirmation Modal ─────────────────── */}
             {/* AnimatePresence ensures the modal animates in/out cleanly */}
             <AnimatePresence>
                 {returnTarget && (

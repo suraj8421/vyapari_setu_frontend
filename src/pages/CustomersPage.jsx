@@ -5,19 +5,19 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { customerAPI, storeAPI } from '../services/api';
+import { customerAPI, storeAPI, paymentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { resolveDateRange } from '../utils/dateUtils';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineMagnifyingGlass,
     HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineArrowUp, HiOutlineArrowDown,
     HiOutlineDocumentArrowDown, HiOutlineSparkles,
-    HiOutlineShieldCheck
+    HiOutlineShieldCheck, HiOutlineShare, HiOutlineCreditCard
 } from 'react-icons/hi2';
 import CreditScoreGauge from '../components/common/CreditScoreGauge';
 import SmartScanModal from '../components/common/SmartScanModal';
@@ -157,6 +157,11 @@ export default function CustomersPage() {
 
     const handlePayment = async (e) => {
         e.preventDefault();
+        
+        if (payForm.paymentMethod === 'ONLINE') {
+            return initiateRazorpay();
+        }
+
         setSaving(true);
         try {
             await customerAPI.recordPayment({
@@ -166,76 +171,235 @@ export default function CustomersPage() {
             });
             setPayModalOpen(false);
             fetchCustomers();
-            alert(t('customers.paymentRecorded'));
-        } catch (err) { alert(err.response?.data?.message || 'Error'); }
+            toast.success(t('customers.paymentRecorded'));
+        } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
         finally { setSaving(false); }
+    };
+
+    const initiateRazorpay = async () => {
+        try {
+            setSaving(true);
+            const { data } = await paymentAPI.createOrder({
+                customerId: selectedCustomer.id,
+                amount: Number(payForm.amount)
+            });
+
+            const options = {
+                key: data.data.key,
+                amount: data.data.totalAmount * 100,
+                currency: "INR",
+                name: "VyapariSetu",
+                description: `Payment for ${selectedCustomer.name}`,
+                order_id: data.data.orderId,
+                handler: async (response) => {
+                    try {
+                        const verified = await paymentAPI.verifyPayment({
+                            razorpayOrderId: response.razorpay_order_id,
+                            razorpayPaymentId: response.razorpay_payment_id,
+                            razorpaySignature: response.razorpay_signature
+                        });
+                        if (verified.data.success) {
+                            toast.success("Payment Successful!");
+                            setPayModalOpen(false);
+                            fetchCustomers();
+                        }
+                    } catch (err) {
+                        toast.error("Cloud verification failed. It will be auto-processed via webhook.");
+                        setPayModalOpen(false);
+                    }
+                },
+                prefill: {
+                    name: selectedCustomer.name,
+                    contact: selectedCustomer.phone
+                },
+                theme: { color: "#3B82F6" }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        } catch (err) {
+            toast.error("Failed to start Razorpay. Using mock/manual mode.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSendPaymentLink = (cust) => {
+        const bal = Math.abs(Number(cust.balance));
+        if (bal <= 0) return toast.info("No balance to collect");
+
+        const paymentUrl = `${window.location.origin}/pay/${cust.id}`;
+        const msg = encodeURIComponent(`Hi ${cust.name}, your pending amount on VyapariSetu is ₹${bal}. Please pay at your convenience.\n\nPayment Link:\n${paymentUrl}`);
+        window.open(`https://wa.me/91${cust.phone}?text=${msg}`, '_blank');
+        toast.success("Message sent to WhatsApp!");
+    };
+
+    const handleCopyAndOpenLink = (cust) => {
+        const url = `${window.location.origin}/pay/${cust.id}`;
+        navigator.clipboard.writeText(url);
+        window.open(url, '_blank');
+        toast.success("Link copied and opened!");
     };
 
     const handleDownloadKhataPDF = () => {
         if (!selectedCustomer) return;
 
-        const doc = new jsPDF();
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW = doc.internal.pageSize.getWidth();
+        const blue = [37, 99, 235];
+        const green = [16, 185, 129];
+        const red = [220, 38, 38];
+        const lightBg = [248, 250, 252];
+        const dark = [15, 23, 42];
 
-        // Header
-        doc.setFontSize(20);
-        doc.text('Customer Account Statement', 14, 22);
+        // jsPDF cannot render the Rs symbol correctly, use 'Rs.' instead
+        const fmt = (val) => `Rs. ${Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        // ── Blue Header Banner ──────────────────────────────────────
+        doc.setFillColor(...blue);
+        doc.rect(0, 0, pageW, 38, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Customer Account Statement', 14, 16);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text('VyapariSetu - Khata / Ledger Report', 14, 23);
+        doc.setFontSize(8);
+        const genDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const genTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        doc.text(`Generated: ${genDate}, ${genTime}`, pageW - 14, 23, { align: 'right' });
+
+        // ── Customer Info Row ───────────────────────────────────────
+        doc.setFillColor(...lightBg);
+        doc.rect(0, 38, pageW, 26, 'F');
+        doc.setDrawColor(210, 220, 235);
+        doc.line(0, 64, pageW, 64);
 
         doc.setFontSize(12);
-        doc.text(`Customer: ${selectedCustomer.name}`, 14, 32);
-        doc.text(`Phone: ${selectedCustomer.phone || 'N/A'}`, 14, 38);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...dark);
+        doc.text(selectedCustomer.name, 14, 50);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Phone: ${selectedCustomer.phone || 'N/A'}`, 14, 57);
+        if (selectedCustomer.email) doc.text(`Email: ${selectedCustomer.email}`, 14, 62);
 
-        // Fetch period text
-        const periodText = khataRange === 'today' ? 'Today' :
-            khataRange === 'yesterday' ? 'Yesterday' :
-                khataRange === '7d' ? 'Last 7 Days' :
-                    khataRange === '30d' ? 'Last 30 Days' :
-                        khataRange === 'month' ? 'This Month' :
-                            khataRange === 'all' ? 'All Time' : 'Custom';
-
-        doc.text(`Period: ${periodText}`, 140, 32);
-
-        // Current balance
-        const balanceNum = Number(selectedCustomer.balance) || 0;
-        doc.text(`Current Balance: ${formatCurrency(balanceNum)}`, 140, 38);
-
-        const tableColumn = ["Date", "Description", "Type", "Amount", "Balance After"];
-        const tableRows = [];
-
-        [...ledgerEntries].reverse().forEach(entry => {
-            const dateStr = new Date(entry.createdAt).toLocaleDateString('en-IN') + ' ' +
-                new Date(entry.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-            const typeStr = entry.type === 'CREDIT' ? 'Credit (Borrowed)' : 'Debit (Paid)';
-            const amountStr = formatCurrency(entry.amount);
-            const balanceStr = formatCurrency(entry.balanceAfter);
-
-            tableRows.push([
-                dateStr,
-                entry.description || '-',
-                typeStr,
-                amountStr,
-                balanceStr
-            ]);
-        });
-
-        doc.autoTable({
-            startY: 45,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'striped',
-            headStyles: { fillColor: [59, 130, 246] }, // Blue-500
-            styles: { fontSize: 10 },
-            columnStyles: {
-                3: { halign: 'right' },
-                4: { halign: 'right' }
-            }
-        });
-
-        // Footer
-        const finalY = doc.lastAutoTable.finalY || 45;
+        // Period
+        const periodText = { today: 'Today', yesterday: 'Yesterday', '7d': 'Last 7 Days', '30d': 'Last 30 Days', month: 'This Month', all: 'All Time' }[khataRange] || 'Custom Range';
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('Period:', pageW / 2, 47, { align: 'center' });
         doc.setFontSize(10);
-        doc.text(`Generated on ${new Date().toLocaleString('en-IN')}`, 14, finalY + 10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...blue);
+        doc.text(periodText, pageW / 2, 55, { align: 'center' });
 
-        // Download
+        // Balance box (top-right)
+        const balanceNum = Number(selectedCustomer.balance) || 0;
+        const isOwed = balanceNum > 0;
+        const boxColor = isOwed ? red : green;
+        doc.setFillColor(...boxColor);
+        doc.roundedRect(pageW - 58, 40, 48, 22, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(isOwed ? 'OUTSTANDING' : 'SETTLED / ADVANCE', pageW - 34, 48, { align: 'center' });
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(fmt(Math.abs(balanceNum)), pageW - 34, 57, { align: 'center' });
+
+        // ── Ledger Table ────────────────────────────────────────────
+        const entries = [...ledgerEntries].reverse();
+        const tableRows = entries.map(entry => {
+            const d = new Date(entry.createdAt);
+            const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+            const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            return [
+                `${dateStr}\n${timeStr}`,
+                entry.description || '-',
+                entry.type === 'CREDIT' ? 'Credit' : 'Debit',
+                fmt(entry.amount),
+                fmt(entry.balanceAfter),
+            ];
+        });
+
+        autoTable(doc, {
+            startY: 68,
+            head: [['Date', 'Description', 'Type', 'Amount (Rs.)', 'Balance (Rs.)']],
+            body: tableRows,
+            theme: 'grid',
+            headStyles: {
+                fillColor: blue,
+                textColor: 255,
+                fontStyle: 'bold',
+                fontSize: 8.5,
+                cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
+            },
+            styles: {
+                fontSize: 8,
+                cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+                textColor: dark,
+                lineColor: [220, 228, 240],
+                lineWidth: 0.2,
+                overflow: 'linebreak',
+            },
+            alternateRowStyles: { fillColor: [245, 248, 255] },
+            columnStyles: {
+                0: { cellWidth: 26, halign: 'center', valign: 'middle', fontSize: 7.5 },
+                1: { halign: 'left' },
+                2: { cellWidth: 20, halign: 'center', valign: 'middle', fontStyle: 'bold' },
+                3: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+                4: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+            },
+            didParseCell(data) {
+                if (data.section === 'body' && data.column.index === 2) {
+                    data.cell.styles.textColor = data.cell.raw === 'Credit' ? red : green;
+                }
+            },
+            margin: { left: 10, right: 10 },
+        });
+
+        // ── Summary Strip ───────────────────────────────────────────
+        const finalY = doc.lastAutoTable.finalY + 6;
+        const totalCredits = entries.filter(e => e.type === 'CREDIT').reduce((s, e) => s + Number(e.amount || 0), 0);
+        const totalDebits = entries.filter(e => e.type === 'DEBIT').reduce((s, e) => s + Number(e.amount || 0), 0);
+
+        doc.setFillColor(...lightBg);
+        doc.roundedRect(10, finalY, pageW - 20, 22, 2, 2, 'F');
+        doc.setDrawColor(...blue);
+        doc.setLineWidth(0.4);
+        doc.line(10, finalY, 10, finalY + 22);
+
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 116, 139);
+        doc.text('STATEMENT SUMMARY', 16, finalY + 7);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...red);
+        doc.text(`Total Borrowed (Credit):  ${fmt(totalCredits)}`, 16, finalY + 14);
+        doc.setTextColor(...green);
+        doc.text(`Total Paid / Returned (Debit):  ${fmt(totalDebits)}`, 16, finalY + 19);
+
+        doc.setTextColor(...dark);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Net Closing Balance: ${fmt(balanceNum)}`, pageW - 14, finalY + 14, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`${entries.length} transaction(s) shown`, pageW - 14, finalY + 19, { align: 'right' });
+
+        // ── Page Footer ─────────────────────────────────────────────
+        doc.setDrawColor(200, 210, 225);
+        doc.setLineWidth(0.3);
+        doc.line(10, 283, pageW - 10, 283);
+        doc.setFontSize(7);
+        doc.setTextColor(160, 170, 185);
+        doc.text('This is a computer-generated statement. No signature required.', pageW / 2, 288, { align: 'center' });
+        doc.text('Powered by VyapariSetu - Business Management System', pageW / 2, 292, { align: 'center' });
+
         doc.save(`${selectedCustomer.name.replace(/\s+/g, '_')}_Statement.pdf`);
     };
 
@@ -381,6 +545,12 @@ export default function CustomersPage() {
                                     }} className="btn-ghost btn-sm">
                                         <HiOutlinePencilSquare className="w-4 h-4" />
                                     </button>
+                                    <button onClick={() => handleSendPaymentLink(cust)} className="btn-ghost btn-sm text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10" title="Send to WhatsApp">
+                                        <HiOutlineShare className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => handleCopyAndOpenLink(cust)} className="btn-ghost btn-sm text-blue-500 bg-blue-500/5 hover:bg-blue-500/10" title="Open & Copy Payment Link">
+                                        <HiOutlinePlus className="w-4 h-4" /> 
+                                    </button>
                                 </div>
                             </div>
                         ))
@@ -474,11 +644,21 @@ export default function CustomersPage() {
                         <select className="select-field" value={payForm.paymentMethod}
                             onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}>
                             <option value="CASH">{t('sales.cash')}</option>
-                            <option value="UPI">{t('sales.upi')}</option>
+                            <option value="ONLINE">Razorpay (Online Payment)</option>
+                            <option value="UPI">{t('sales.upi')} (Manual)</option>
                             <option value="CARD">{t('sales.card')}</option>
                             <option value="BANK_TRANSFER">{t('sales.bankTransfer')}</option>
                         </select>
                     </div>
+                    {payForm.paymentMethod === 'ONLINE' && (
+                        <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl flex items-center gap-3">
+                            <HiOutlineCreditCard className="w-6 h-6 text-blue-400" />
+                            <div className="flex-1">
+                                <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">Digital Processing</p>
+                                <p className="text-sm text-surface-600">A 2% gateway fee may apply based on your global settings.</p>
+                            </div>
+                        </div>
+                    )}
                     <div>
                         <label className="input-label">{t('customers.reference')}</label>
                         <input className="input-field" value={payForm.reference}

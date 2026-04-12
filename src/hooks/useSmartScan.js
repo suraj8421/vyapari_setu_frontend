@@ -73,49 +73,38 @@ export const useSmartScan = ({ contextType, onScanComplete }) => {
     }, [onScanComplete, standardizeData]);
 
     // ─── OCR Logic (Label/Bill) ─────────────────────────────────────
-    const processImage = useCallback(async (imageSource) => {
+    const processImage = useCallback(async (imageDataUrl) => {
         setIsProcessing(true);
-        setProgress(0);
+        setProgress(30);
         setError(null);
 
         try {
-            const { data: { text } } = await Tesseract.recognize(imageSource, 'eng', {
-                logger: m => {
-                    if (m.status === 'recognizing text') setProgress(Math.floor(m.progress * 100));
-                }
-            });
+            // Convert DataURL to Blob for backend upload
+            const blob = await fetch(imageDataUrl).then(res => res.blob());
+            const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+            
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('contextType', contextType || '');
 
-            // Simple heuristic parsing (can be made much more complex with Regex)
-            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-            const raw = {};
+            const res = await scannerAPI.processImage(formData);
+            const data = res.data?.data || res.data;
 
-            // Heuristic Examples:
-            // 1. Find Price/Amount (e.g., "Total: 500" or "Rs. 200")
-            const amountMatch = text.match(/(?:total|amount|rs|₹|price)[\s:]*([\d,.]+)/i);
-            if (amountMatch) raw.price = amountMatch[1].replace(/,/g, '');
-
-            // 2. Find Phone (e.g., "+91 9876543210")
-            const phoneMatch = text.match(/(?:\+91|0)?\s?[6-9]\d{9}/);
-            if (phoneMatch) raw.phone = phoneMatch[0].replace(/\s/g, '');
-
-            // 3. Find Email
-            const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-            if (emailMatch) raw.email = emailMatch[0];
-
-            // 4. Name (usually first line if it's a card or top of receipt)
-            raw.name = lines[0];
-
-            const standardized = standardizeData(raw);
-            onScanComplete?.(standardized);
-            return standardized;
+            if (data) {
+                const standardized = standardizeData(data.extracted || data);
+                onScanComplete?.(standardized);
+                toast.success('AI Vision capture successful!');
+                return standardized;
+            }
         } catch (err) {
-            setError('OCR processing failed');
-            toast.error('Could not read text from image');
+            console.error('[useSmartScan] processImage error:', err);
+            setError('AI parsing failed');
+            toast.error('AI Vision could not read the capture. Please try again.');
         } finally {
             setIsProcessing(false);
             setProgress(0);
         }
-    }, [onScanComplete, standardizeData]);
+    }, [onScanComplete, standardizeData, contextType]);
 
     // ─── Voice Logic ────────────────────────────────────────────────
     const startVoice = useCallback(() => {
@@ -164,25 +153,49 @@ export const useSmartScan = ({ contextType, onScanComplete }) => {
         recognitionRef.current?.stop();
         setIsListening(false);
     }, []);
-
     // ─── File Upload Logic ──────────────────────────────────────────
     const handleFileUpload = useCallback(async (file) => {
         setIsProcessing(true);
+        setError(null);
         try {
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('document', file);
+            formData.append('contextType', contextType || '');
             
             const res = await scannerAPI.processDocument(formData);
-            const standardized = standardizeData(res.data); // Backend returns structured multi-item data
+            const responseData = res?.data?.data || res?.data || {};
+
+            if (responseData.type === 'MULTI_PRODUCT_DOC' && Array.isArray(responseData.items)) {
+                const extractedItems = responseData.items.map(item => ({
+                    ...item.extracted,
+                    productId: item.existingProduct?.id || '',
+                    productName: item.extracted?.name || '',
+                    unitPrice: contextType === 'sale' 
+                        ? (item.extracted?.sellingPrice || item.extracted?.unitPrice || 0)
+                        : (item.extracted?.costPrice || item.extracted?.unitPrice || 0),
+                    quantity: item.extracted?.quantity || 1,
+                    unit: item.extracted?.unit || 'PCS',
+                    gstRate: item.extracted?.gstRate || 0,
+                }));
+
+                const docMetadata = responseData.metadata || {};
+                onScanComplete?.('BULK_IMPORT', extractedItems, docMetadata);
+                toast.success(`Scanned ${extractedItems.length} items from document!`);
+                return extractedItems;
+            }
+
+            const standardized = standardizeData(responseData.extracted || responseData);
             onScanComplete?.(standardized);
             return standardized;
         } catch (err) {
+            console.error('[useSmartScan] handleFileUpload error:', err);
             setError('File processing failed');
-            toast.error('Failed to parse document');
+            toast.error('Failed to parse document. Please try again.');
         } finally {
             setIsProcessing(false);
         }
-    }, [onScanComplete, standardizeData]);
+    }, [onScanComplete, standardizeData, contextType]);
+
 
     return {
         isProcessing,

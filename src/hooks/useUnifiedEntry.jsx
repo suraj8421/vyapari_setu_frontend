@@ -89,6 +89,9 @@ export function useUnifiedEntry() {
     // ─── Form Data ───────────────────────────────────────────
     const [formData, setFormData] = useState({ ...INITIAL_FORM });
 
+    // ─── Post-Success State ─────────────────────────────────
+    const [completedInvoice, setCompletedInvoice] = useState(null);
+
     // ════════════════════════════════════════════════════════
     // Data Fetching
     // ════════════════════════════════════════════════════════
@@ -205,9 +208,12 @@ export function useUnifiedEntry() {
 
             try {
                 setLoading(true);
+                const phone = window.prompt(`Enter Phone Number for ${item.name} (Optional):`);
+                
                 const res = await api.post(endpoint, { 
                     name: item.name, 
-                    storeId: targetStoreId 
+                    storeId: targetStoreId,
+                    phone: phone || '' 
                 });
                 
                 const newEntity = res.data.data;
@@ -398,8 +404,25 @@ export function useUnifiedEntry() {
     /**
      * Unified Handler for Scanner Actions
      */
-    const handleScannerAction = useCallback((action, payload) => {
-        // Support for SimpleEntryForm types (EXPENSE, PAYMENT, MISC)
+    const handleScannerAction = useCallback(async (action, payload, metadata) => {
+        // 1. Auto-resolve Party (Customer or Supplier) from document metadata
+        if (metadata) {
+            const isSale = type === 'SALE' || type === 'PAYMENT';
+            const nameToSearch = isSale ? metadata.customerName : metadata.supplierName;
+            
+            if (nameToSearch) {
+                const list = isSale ? customers : suppliers;
+                const match = list.find(p => p.name?.toLowerCase().includes(nameToSearch.toLowerCase()));
+                if (match) {
+                    handlePartySelect(match);
+                } else {
+                    // Quick offer to create if not found
+                    toast(`Found ${isSale ? 'Customer' : 'Supplier'} "${nameToSearch}" on invoice. Select from search to link.`, { icon: '🔍' });
+                }
+            }
+        }
+
+        // 2. Map Payload to Form (Current Logic)
         if (type === 'EXPENSE' || type === 'PAYMENT' || type === 'MISC') {
             setFormData(prev => ({
                 ...prev,
@@ -549,44 +572,85 @@ export function useUnifiedEntry() {
     // Form Submission
     // ════════════════════════════════════════════════════════
 
-    const handleSubmit = useCallback(async (e) => {
-        e.preventDefault();
+    const submitTransaction = async (overrides = {}) => {
+        if (type === 'SALE') {
+            const hasCustomerName = !!formData.partyName;
+            const hasCustomerNumber = !!formData.mobile;
+            
+            if (!formData.partyId || !hasCustomerName || !hasCustomerNumber) {
+                toast.custom((t) => (
+                    <div className={`${t.visible ? 'animate-bounce' : 'opacity-0'} max-w-md w-full bg-white border-l-4 border-emerald-400 border-y border-r border-slate-100 shadow-2xl rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all duration-300`}>
+                        <div className="flex-1 w-0 p-4">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0 pt-0.5"><span className="text-2xl">📱</span></div>
+                                <div className="ml-3 flex-1">
+                                    <p className="text-sm font-black text-orange-600 tracking-wide uppercase">Details Needed</p>
+                                    <p className="mt-1 text-xs font-semibold text-orange-700/80 leading-relaxed">
+                                        To send an instant WhatsApp invoice, we need a contact number! Please select or add a <strong className="text-orange-600">Customer</strong> with a phone number.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ), { duration: 5000 });
+                return;
+            }
+        }
+
         setLoading(true);
 
         try {
-            const totals = calculateTotals();
+            const currentTotals = calculateTotals();
+            const finalOptions = overrides.options || formData.options;
+            const finalPaidAmount = overrides.paidAmount !== undefined ? overrides.paidAmount : currentTotals.paidAmount;
+
+            // Filter out empty rows (e.g. user added a row but didn't select a product)
+            let finalItems = formData.items;
+            if (type === 'SALE' || type === 'PURCHASE') {
+                finalItems = formData.items.filter(item => item.productId && item.productId.trim() !== '');
+                if (finalItems.length === 0) {
+                    toast.error("Please add at least one valid product before recording the transaction.");
+                    setLoading(false);
+                    return;
+                }
+            }
 
             const payload = {
                 ...formData,
+                ...overrides, // allows overriding payments array etc.
+                items: finalItems,
                 type,
-                totalAmount: totals.total,
-                paidAmount: totals.paidAmount,
+                options: finalOptions,
+                totalAmount: currentTotals.total,
+                paidAmount: finalPaidAmount,
                 customerId: (type === 'SALE' || type === 'PAYMENT') ? formData.partyId : null,
                 supplierId: type === 'PURCHASE' ? formData.partyId : null,
             };
 
             const res = await api.post('/transactions', payload);
 
-            if (formData.options.generateInvoice && (type === 'SALE' || type === 'PURCHASE')) {
+            if (finalOptions.generateInvoice && (type === 'SALE' || type === 'PURCHASE')) {
                 const partyList = type === 'SALE' ? customers : suppliers;
                 const party = partyList.find(p => p.id === formData.partyId);
 
-                generateInvoicePDF(
-                    {
-                        ...payload,
-                        ...totals,
-                        partyName: party?.name,
-                        mobile: party?.phone,
-                        invoiceNumber: res.data.data?.invoiceNumber,
-                        store: user?.store, // Pass full store details
-                    },
-                    type,
-                    products,
-                );
+                const createdSale = {
+                    ...payload,
+                    ...currentTotals,
+                    id: res.data.data?.id,
+                    invoiceNumber: res.data.data?.invoiceNumber,
+                    createdAt: res.data.data?.createdAt || new Date(),
+                    partyName: party?.name,
+                    mobile: party?.phone,
+                    store: user?.store,
+                    type: type
+                };
+                
+                toast.success(`✅ ${type} recorded successfully!`);
+                setCompletedInvoice(createdSale);
+            } else {
+                toast.success(`✅ ${type} recorded successfully!`);
+                navigate('/dashboard');
             }
-
-            toast.success(`✅ ${type} recorded successfully!`);
-            navigate('/dashboard');
         } catch (err) {
             const msg = err.response?.data?.message || 'Error saving entry. Please try again.';
             toast.error(msg);
@@ -594,7 +658,43 @@ export function useUnifiedEntry() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSubmit = useCallback((e) => {
+        e.preventDefault();
+        submitTransaction();
     }, [formData, type, customers, suppliers, products, calculateTotals, navigate, user?.store]);
+
+    const handlePaymentSettlement = useCallback(() => {
+        const currentTotals = calculateTotals();
+        
+        // Prevent using settle if the amount typed does not EXACTLY match the grand total
+        if (currentTotals.paidAmount < currentTotals.total) {
+                toast.custom((t) => (
+                    <div className={`${t.visible ? 'animate-bounce' : 'opacity-0'} max-w-md w-full bg-white border-l-4 border-emerald-400 border-y border-r border-slate-100 shadow-2xl rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all duration-300`}>
+                        <div className="flex-1 w-0 p-4">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0 pt-0.5"><span className="text-2xl">💡</span></div>
+                                <div className="ml-3 flex-1">
+                                    <p className="text-sm font-black text-orange-600 tracking-wide uppercase">Incomplete Settlement</p>
+                                    <p className="mt-1 text-xs font-semibold text-orange-700/80 leading-relaxed">
+                                        Please enter the exact full settlement amount, or use the standard <strong className="text-orange-600">Record Transaction</strong> button instead!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ), { duration: 5000 });
+            return;
+        }
+
+        // Quick 1-click full payment settlement, skipping ledger update
+        submitTransaction({
+            options: { ...formData.options, updateLoan: false },
+            payments: [{ method: formData.payments[0].method || 'CASH', amount: currentTotals.total }],
+            paidAmount: currentTotals.total,
+        });
+    }, [formData, calculateTotals]);
 
     // ════════════════════════════════════════════════════════
     // Public API (what the page component gets)
@@ -622,7 +722,10 @@ export function useUnifiedEntry() {
         removePayment,
         handlePaymentChange,
         handleSubmit,
+        handlePaymentSettlement,
         handleScannerAction,
         stores,
+        completedInvoice,
+        setCompletedInvoice,
     };
 }

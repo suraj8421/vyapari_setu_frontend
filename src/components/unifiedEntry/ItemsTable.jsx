@@ -528,7 +528,8 @@ export default function ItemsTable({ items, products, type, invoiceType, onItemC
             <SmartScanModal 
                 isOpen={isScannerOpen}
                 onClose={() => setIsScannerOpen(false)}
-                onAction={onScannerAction}
+                contextType={type?.toLowerCase()} // SALE -> sale, PURCHASE -> purchase
+                onScanComplete={onScannerAction}
             />
         </div>
     );

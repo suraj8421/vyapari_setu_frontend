@@ -66,8 +66,8 @@ export default function SALeadFormModal({ isOpen, onClose, onSubmit, editingLead
                 <form onSubmit={handleSubmit} className="p-8 space-y-5">
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-xs font-black text-gray-500 uppercase mb-1.5">Business / Firm Name *</label>
-                            <input required name="businessName" value={formData.businessName} onChange={handleChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-red-500/50 outline-none" />
+                            <label className="block text-xs font-black text-gray-500 uppercase mb-1.5">Business / Inquiry Message *</label>
+                            <textarea required name="businessName" value={formData.businessName} onChange={handleChange} rows={formData.businessName.length > 50 ? 3 : 1} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-red-500/50 outline-none resize-none transition-all" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>

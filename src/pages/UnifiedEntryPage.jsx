@@ -26,8 +26,10 @@
 //
 
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import InvoiceViewModal from '../components/common/InvoiceViewModal';
 
 // ── Custom hook — all business logic lives here ──────────────────
 import { useUnifiedEntry } from '../hooks/useUnifiedEntry';
@@ -55,6 +57,7 @@ function DataLoadingSkeleton() {
 export default function UnifiedEntryPage() {
     const { t } = useTranslation();
     const { user } = useAuth();
+    const navigate = useNavigate();
     
     // REFACTOR: One hook call replaces ~100 lines of state + effect + handler declarations
     const {
@@ -83,8 +86,11 @@ export default function UnifiedEntryPage() {
         removePayment,
         handlePaymentChange,
         handleSubmit,
+        handlePaymentSettlement,
         handleScannerAction,
         stores,
+        completedInvoice,
+        setCompletedInvoice,
     } = useUnifiedEntry();
 
     /**
@@ -180,6 +186,7 @@ export default function UnifiedEntryPage() {
                                 onAddPayment={addPayment}
                                 onRemovePayment={removePayment}
                                 onPaymentChange={handlePaymentChange}
+                                onPaymentSettlement={handlePaymentSettlement}
                             />
 
                             {isEditMode && history.length > 0 && (
@@ -188,6 +195,16 @@ export default function UnifiedEntryPage() {
                         </div>
                     </div>
                 </form>
+            )}
+
+            {completedInvoice && (
+                <InvoiceViewModal 
+                    sale={completedInvoice}
+                    onClose={() => {
+                        setCompletedInvoice(null);
+                        navigate('/dashboard');
+                    }}
+                />
             )}
         </div>
     );

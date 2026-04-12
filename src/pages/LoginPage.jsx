@@ -149,19 +149,6 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                {/* Demo credentials hint */}
-                <div className="mt-4 p-3 rounded-xl bg-surface-800/50 border border-surface-700/50 text-center">
-                    <p className="text-xs text-surface-500">Demo Credentials</p>
-                    <p className="text-xs text-surface-400 mt-1">
-                        Super Admin: <span className="text-primary-400">super@vyaparisetu.com</span> / <span className="text-primary-400">admin123</span>
-                    </p>
-                    <p className="text-xs text-surface-400">
-                        Admin: <span className="text-primary-400">admin@vyaparisetu.com</span> / <span className="text-primary-400">admin123</span>
-                    </p>
-                    <p className="text-xs text-surface-400">
-                        Staff: <span className="text-primary-400">staff@vyaparisetu.com</span> / <span className="text-primary-400">admin123</span>
-                    </p>
-                </div>
             </div>
         </div>
     );
