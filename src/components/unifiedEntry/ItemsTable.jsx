@@ -6,8 +6,6 @@ import { PlusIcon, TrashIcon, CubeIcon, ChevronDownIcon, ChevronUpIcon } from '@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import AutocompleteInput from '../common/AutocompleteInput';
-import SmartScanModal from '../common/SmartScanModal';
-import { HiOutlineSparkles } from 'react-icons/hi2';
 
 // ── Single DetailRow (Variable Mode Bag) ──────────────────────────
 function VariableBagEntry({ value, index, onChange, onRemove }) {
@@ -448,9 +446,7 @@ function ItemRow({ item, index, products, invoiceType, onItemChange, onRemoveIte
 }
 
 // ── Main ItemsTable Component ──────────────────────────────────────────
-export default function ItemsTable({ items, products, type, invoiceType, onItemChange, onAddItem, onRemoveItem, onScannerAction }) {
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
-
+export default function ItemsTable({ items, products, type, invoiceType, onItemChange, onAddItem, onRemoveItem }) {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between mb-4">
@@ -462,16 +458,6 @@ export default function ItemsTable({ items, products, type, invoiceType, onItemC
                         {items.length} Product{items.length !== 1 ? 's' : ''}
                     </span>
                 </h3>
-
-                {/* Unified Smart Scan Button */}
-                <button
-                    type="button"
-                    onClick={() => setIsScannerOpen(true)}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-surface-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-105 transition-all shadow-xl shadow-surface-200"
-                >
-                    <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
-                    Smart Scan
-                </button>
             </div>
 
             {/* Header Labels (Matching Grid Columns) */}
@@ -523,14 +509,6 @@ export default function ItemsTable({ items, products, type, invoiceType, onItemC
                     Add Product Row
                 </button>
             </div>
-
-            {/* Scanner Modal */}
-            <SmartScanModal 
-                isOpen={isScannerOpen}
-                onClose={() => setIsScannerOpen(false)}
-                contextType={type?.toLowerCase()} // SALE -> sale, PURCHASE -> purchase
-                onScanComplete={onScannerAction}
-            />
         </div>
     );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
-    HiOutlineXMark, HiOutlineBriefcase
+    HiOutlineXMark, HiOutlineBriefcase, HiOutlineCurrencyRupee
 } from 'react-icons/hi2';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -12,6 +12,8 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
         firstName: '', lastName: '', phone: '', email: '',
         password: '', platformStatus: 'ACTIVE', notes: '', assignedAgentId: '',
         planId: '',
+        paymentMethod: 'CASH',
+        amountReceived: '',
         storeDetails: { name: '', address: '', city: '', state: '', pincode: '' }
     });
 
@@ -102,6 +104,34 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
                             <div className="md:col-span-2"><label className="block text-xs font-black text-gray-500 uppercase mb-1.5">Store / Business Name *</label><input required name="store.name" value={formData.storeDetails.name} onChange={handleChange} className="w-full form-input" /></div>
                             <div><label className="block text-xs font-black text-gray-500 uppercase mb-1.5">State</label><input name="store.state" value={formData.storeDetails.state} onChange={handleChange} className="w-full form-input" /></div>
                             <div><label className="block text-xs font-black text-gray-500 uppercase mb-1.5">City</label><input name="store.city" value={formData.storeDetails.city} onChange={handleChange} className="w-full form-input" /></div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100">
+                        <h3 className="text-sm font-black text-surface-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                             <HiOutlineCurrencyRupee className="w-4 h-4 text-emerald-500" /> Payment Collection
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className="block text-xs font-black text-gray-500 uppercase mb-1.5">Payment Method</label>
+                                <select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} className="w-full form-input">
+                                    <option value="CASH">CASH</option>
+                                    <option value="GPAY">GPAY / PHONEPE</option>
+                                    <option value="BANK_TRANSFER">BANK TRANSFER</option>
+                                    <option value="CHEQUE">CHEQUE</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-gray-500 uppercase mb-1.5">Amount Received (₹)</label>
+                                <input 
+                                    name="amountReceived" 
+                                    type="number" 
+                                    placeholder={formData.planId ? plans.find(p => p.id === formData.planId)?.price : '0'}
+                                    value={formData.amountReceived} 
+                                    onChange={handleChange} 
+                                    className="w-full form-input" 
+                                />
+                            </div>
                         </div>
                     </div>
                     

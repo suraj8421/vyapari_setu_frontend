@@ -32,12 +32,9 @@ import {
     HiOutlinePlusCircle,
     HiOutlineArrowDownTray,
     HiOutlineClock,
-    HiOutlineQrCode,
     HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import Modal from '../components/common/Modal';
-import SmartScanModal from '../components/common/SmartScanModal';
-import { HiOutlineSparkles } from 'react-icons/hi2';
 import { productAPI } from '../services/api';
 import { getOrFetch, invalidate } from '../utils/dataCache';
 
@@ -410,8 +407,6 @@ export default function InventoryPage() {
     const [historyTarget, setHistoryTarget] = useState(null);
     const [adjustModalOpen, setAdjustModalOpen] = useState(false);
     const [adjustTarget, setAdjustTarget] = useState(null);
-    const [scannerOpen, setScannerOpen] = useState(false);
-
     // Computed derived data
     const [lowStockItems, setLowStockItems] = useState([]);
     const [outOfStockItems, setOutOfStockItems] = useState([]);
@@ -538,14 +533,6 @@ export default function InventoryPage() {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button
-                        onClick={() => setScannerOpen(true)}
-                        className="flex items-center gap-2 p-2.5 rounded-xl border border-primary-200 bg-primary-50 text-primary-700
-                                   hover:bg-primary-100 transition-colors"
-                        title="Smart Scan"
-                    >
-                        <HiOutlineSparkles className="w-5 h-5 text-primary-500" />
-                    </button>
                     {/* Refresh */}
                     <button
                         onClick={fetchInventory}
@@ -877,17 +864,6 @@ export default function InventoryPage() {
                 onClose={() => setAdjustModalOpen(false)}
                 product={adjustTarget}
                 onSuccess={fetchInventory}
-            />
-
-            {/* Unified Smart Scan */}
-            <SmartScanModal
-                isOpen={scannerOpen}
-                onClose={() => setScannerOpen(false)}
-                contextType="inventory"
-                onScanComplete={(data) => {
-                    // Navigate to products page to perform edits/creations based on scan
-                    navigate('/products', { state: { scanData: data } });
-                }}
             />
         </div>
     );

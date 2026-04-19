@@ -75,9 +75,17 @@ export default function Sidebar({ isOpen, onClose }) {
                 {/* Space at the top */}
                 <div className="pt-4" />
 
-                {/* User Info */}
+                {/* User Info (Clickable for Profile) */}
                 <div className="px-4 py-4 border-b border-gray-100">
-                    <div className="flex items-center gap-3 px-2">
+                    <NavLink
+                        to="/profile"
+                        onClick={onClose}
+                        className={({ isActive }) => `flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-200 
+                            ${isActive 
+                                ? 'bg-primary-50 ring-1 ring-primary-100' 
+                                : 'hover:bg-gray-50'
+                            }`}
+                    >
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-accent-400 
                             flex items-center justify-center text-white text-sm font-bold">
                             {user?.firstName?.[0]}{user?.lastName?.[0]}
@@ -90,7 +98,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                 {isAdmin ? t('users.admin') : t('users.staff')}
                             </p>
                         </div>
-                    </div>
+                    </NavLink>
                 </div>
 
                 {/* Navigation */}

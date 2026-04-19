@@ -16,11 +16,10 @@ import autoTable from 'jspdf-autotable';
 import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineMagnifyingGlass,
     HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineArrowUp, HiOutlineArrowDown,
-    HiOutlineDocumentArrowDown, HiOutlineSparkles,
+    HiOutlineDocumentArrowDown,
     HiOutlineShieldCheck, HiOutlineShare, HiOutlineCreditCard
 } from 'react-icons/hi2';
 import CreditScoreGauge from '../components/common/CreditScoreGauge';
-import SmartScanModal from '../components/common/SmartScanModal';
 import { toast } from 'react-hot-toast';
 import { getOrFetch } from '../utils/dataCache';
 
@@ -41,7 +40,6 @@ export default function CustomersPage() {
     const [custModalOpen, setCustModalOpen] = useState(false);
     const [payModalOpen, setPayModalOpen] = useState(false);
     const [khataOpen, setKhataOpen] = useState(false);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [ledgerEntries, setLedgerEntries] = useState([]);
     const [ledgerPag, setLedgerPag] = useState(null);
@@ -451,13 +449,6 @@ export default function CustomersPage() {
                         <HiOutlineDocumentArrowDown className="w-5 h-5" />
                         <span className="hidden sm:inline">Export CSV</span>
                     </button>
-                    <button
-                        onClick={() => setIsScannerOpen(true)}
-                        className="btn-ghost text-primary-400 border border-primary-400/30 flex items-center gap-2"
-                    >
-                        <HiOutlineSparkles className="w-5 h-5" />
-                        Smart Scan
-                    </button>
                     <button onClick={() => { setSelectedCustomer(null); setForm({ ...emptyForm }); setCustModalOpen(true); }} className="btn-primary" id="add-customer-btn">
                         <HiOutlinePlus className="w-5 h-5" />
                         {t('customers.addCustomer')}
@@ -777,31 +768,6 @@ export default function CustomersPage() {
                     )}
                 </div>
             </Modal>
-
-            <SmartScanModal
-                isOpen={isScannerOpen}
-                onClose={() => setIsScannerOpen(false)}
-                contextType="ledger"
-                onScanComplete={(data) => {
-                    // Search for existing customer
-                    const found = customers.find(c => c.phone === data.phone || c.name === data.name);
-                    if (found) {
-                        openKhata(found);
-                        toast.success(`Found Customer: ${found.name}`);
-                    } else {
-                        setForm(prev => ({
-                            ...prev,
-                            name: data.name || prev.name,
-                            phone: data.phone || prev.phone,
-                            email: data.email || prev.email,
-                            address: data.address || prev.address
-                        }));
-                        setCustModalOpen(true);
-                        toast.success("New Customer details captured!");
-                    }
-                    setIsScannerOpen(false);
-                }}
-            />
         </div>
     );
 }

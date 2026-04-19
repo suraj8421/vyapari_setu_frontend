@@ -6,8 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineMagnifyingGlass, HiOutlineSparkles } from 'react-icons/hi2';
-import SmartScanModal from '../components/common/SmartScanModal';
+import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 
 export default function SuppliersPage() {
     const { t } = useTranslation();
@@ -19,7 +18,6 @@ export default function SuppliersPage() {
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [stores, setStores] = useState([]);
     const emptyForm = { name: '', phone: '', email: '', gstNumber: '', address: '', storeId: user?.storeId || '' };
@@ -68,13 +66,6 @@ export default function SuppliersPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-surface-900">{t('suppliers.title')}</h1>
                 <div className="flex gap-3">
-                    <button
-                        onClick={() => setIsScannerOpen(true)}
-                        className="btn-ghost text-primary-400 border border-primary-400/30 flex items-center gap-2"
-                    >
-                        <HiOutlineSparkles className="w-5 h-5" />
-                        Smart Scan
-                    </button>
                     {isAdmin && <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('suppliers.addSupplier')}</button>}
                 </div>
             </div>
@@ -105,24 +96,6 @@ export default function SuppliersPage() {
                     </div>
                 </form>
             </Modal>
-
-            <SmartScanModal
-                isOpen={isScannerOpen}
-                onClose={() => setIsScannerOpen(false)}
-                contextType="supplier"
-                onScanComplete={(data) => {
-                    setForm(prev => ({
-                        ...prev,
-                        name: data.name || prev.name,
-                        phone: data.phone || prev.phone,
-                        email: data.email || prev.email,
-                        address: data.address || prev.address
-                    }));
-                    setIsScannerOpen(false);
-                    setModalOpen(true);
-                    toast.success("Supplier info captured! Please review.");
-                }}
-            />
         </div>
     );
 }

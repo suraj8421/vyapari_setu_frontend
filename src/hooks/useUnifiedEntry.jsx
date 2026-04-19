@@ -369,105 +369,6 @@ export function useUnifiedEntry() {
         });
     }, [type]);
 
-    /**
-     * Bulk Add Items (from Scanner)
-     */
-    const bulkAddItems = useCallback((newItemsData) => {
-        setFormData(prev => {
-            const currentItems = [...prev.items];
-            // Remove the first empty row if it hasn't been used yet
-            const filteredItems = currentItems.length === 1 && !currentItems[0].productId && !currentItems[0].productName 
-                ? [] 
-                : currentItems;
-
-            const mapped = newItemsData.map(data => {
-                const item = { ...BLANK_ITEM, ...data };
-                // Ensure cost price is set if it's a purchase
-                if (type === 'PURCHASE' && data.costPrice) item.unitPrice = Number(data.costPrice);
-                if (type === 'SALE' && data.sellingPrice) item.unitPrice = Number(data.sellingPrice);
-                
-                // Recalculate total for the new item
-                const qty = Number(item.quantity || 0);
-                const price = Number(item.unitPrice || 0);
-                const disc = Number(item.discount || 0);
-                const gst = prev.invoiceType === 'GST' ? Number(item.gstRate || 0) : 0;
-                const net = (qty * price) - (qty * disc);
-                item.total = net + (net * gst / 100);
-                
-                return item;
-            });
-
-            return { ...prev, items: [...filteredItems, ...mapped] };
-        });
-    }, [type]);
-
-    /**
-     * Unified Handler for Scanner Actions
-     */
-    const handleScannerAction = useCallback(async (action, payload, metadata) => {
-        // 1. Auto-resolve Party (Customer or Supplier) from document metadata
-        if (metadata) {
-            const isSale = type === 'SALE' || type === 'PAYMENT';
-            const nameToSearch = isSale ? metadata.customerName : metadata.supplierName;
-            
-            if (nameToSearch) {
-                const list = isSale ? customers : suppliers;
-                const match = list.find(p => p.name?.toLowerCase().includes(nameToSearch.toLowerCase()));
-                if (match) {
-                    handlePartySelect(match);
-                } else {
-                    // Quick offer to create if not found
-                    toast(`Found ${isSale ? 'Customer' : 'Supplier'} "${nameToSearch}" on invoice. Select from search to link.`, { icon: '🔍' });
-                }
-            }
-        }
-
-        // 2. Map Payload to Form (Current Logic)
-        if (type === 'EXPENSE' || type === 'PAYMENT' || type === 'MISC') {
-            setFormData(prev => ({
-                ...prev,
-                paidAmount: payload.price || prev.paidAmount,
-                category: payload.name || prev.category,
-                notes: payload.notes || prev.notes
-            }));
-            toast.success(`✅ Scanned data applied to ${type}`);
-            return;
-        }
-
-        if (action === 'BULK_IMPORT') {
-            bulkAddItems(payload);
-        } else if (action === 'OPEN_CREATE_PREFILLED' || action === 'OPEN_EDIT') {
-            // Overwrite the last empty item or add new
-            setFormData(prev => {
-                const items = [...prev.items];
-                const lastIdx = items.length - 1;
-                
-                // If last item is blank, reuse it
-                if (!items[lastIdx].productId && !items[lastIdx].productName) {
-                    items[lastIdx] = { ...items[lastIdx], ...payload };
-                    if (payload.costPrice && type === 'PURCHASE') items[lastIdx].unitPrice = Number(payload.costPrice);
-                    if (payload.sellingPrice && type === 'SALE') items[lastIdx].unitPrice = Number(payload.sellingPrice);
-                } else {
-                    const newItem = { ...BLANK_ITEM, ...payload };
-                    if (payload.costPrice && type === 'PURCHASE') newItem.unitPrice = Number(payload.costPrice);
-                    if (payload.sellingPrice && type === 'SALE') newItem.unitPrice = Number(payload.sellingPrice);
-                    items.push(newItem);
-                }
-                
-                // Trigger line item recalc (simplified here, but handleItemChange logic should ideally be reusable)
-                const finalItems = items.map(it => {
-                    const qty = Number(it.quantity || 0);
-                    const pr = Number(it.unitPrice || 0);
-                    const net = (qty * pr); 
-                    it.total = net + (net * (prev.invoiceType === 'GST' ? Number(it.gstRate) : 0) / 100);
-                    return it;
-                });
-
-                return { ...prev, items: finalItems };
-            });
-        }
-    }, [bulkAddItems, type]);
-
     // Derive grand totals from items list (called on every render — cheap enough)
     const calculateTotals = useCallback(() => {
         const items = formData.items;
@@ -723,7 +624,6 @@ export function useUnifiedEntry() {
         handlePaymentChange,
         handleSubmit,
         handlePaymentSettlement,
-        handleScannerAction,
         stores,
         completedInvoice,
         setCompletedInvoice,

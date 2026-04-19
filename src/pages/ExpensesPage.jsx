@@ -24,13 +24,11 @@ import {
     HiOutlineChartPie,
     HiOutlineNoSymbol,
     HiOutlineArrowTrendingDown,
-    HiOutlineSparkles,
     HiOutlineXMark,
     HiOutlineCheck
 } from 'react-icons/hi2';
 import { toast } from 'react-hot-toast';
 import Modal from '../components/common/Modal';
-import SmartScanModal from '../components/common/SmartScanModal';
 import { expenseAPI } from '../services/api';
 import { getOrFetch } from '../utils/dataCache';
 import { resolveDateRange } from '../utils/dateUtils';
@@ -288,7 +286,6 @@ export default function ExpensesPage() {
     const [pagination, setPagination] = useState({ page: 1, total: 0, limit: 20 });
     const [loading, setLoading] = useState(true);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
@@ -405,17 +402,6 @@ export default function ExpensesPage() {
                         title="Refresh"
                     >
                         <HiOutlineArrowPath className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-
-                    {/* Smart Scan */}
-                    <button
-                        onClick={() => setIsScannerOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl
-                                   bg-surface-900 hover:bg-black text-white font-bold
-                                   text-xs uppercase tracking-widest transition-all shadow-xl shadow-surface-200"
-                    >
-                        <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
-                        Smart Scan
                     </button>
 
                     {/* Add expense shortcut */}
@@ -670,24 +656,6 @@ export default function ExpensesPage() {
                     </div>
                 </form>
             </Modal>
-
-            {/* Smart Scan Provider */}
-            <SmartScanModal
-                isOpen={isScannerOpen}
-                onClose={() => setIsScannerOpen(false)}
-                contextType="expense"
-                onScanComplete={(data) => {
-                    setForm(prev => ({
-                        ...prev,
-                        amount: data.price || prev.amount,
-                        note: data.name || prev.note,
-                        category: data.items?.[0]?.category || prev.category || 'General'
-                    }));
-                    setIsScannerOpen(false);
-                    setIsCreateModalOpen(true);
-                    toast.success("Intelligence Captured! Review your entry.");
-                }}
-            />
         </div>
     );
 }

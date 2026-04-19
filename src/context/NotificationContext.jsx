@@ -70,6 +70,7 @@ export function NotificationProvider({ children }) {
         };
 
         const handleReconnect = () => {
+            if (!isAuthenticated) return;
             console.log('Socket reconnected, disabling local polling');
             if (offlinePollTimer) clearInterval(offlinePollTimer);
             fetchUnreadCount(); // Fetch immediately on reconnect

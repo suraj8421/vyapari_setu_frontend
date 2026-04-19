@@ -87,7 +87,6 @@ export default function UnifiedEntryPage() {
         handlePaymentChange,
         handleSubmit,
         handlePaymentSettlement,
-        handleScannerAction,
         stores,
         completedInvoice,
         setCompletedInvoice,
@@ -142,7 +141,6 @@ export default function UnifiedEntryPage() {
                             onItemChange={handleItemChange}
                             onAddItem={addItem}
                             onRemoveItem={removeItem}
-                            onScannerAction={handleScannerAction}
                         />
                     )}
 
@@ -151,7 +149,6 @@ export default function UnifiedEntryPage() {
                             formData={formData}
                             type={type}
                             onChange={handleInputChange}
-                            onScannerAction={handleScannerAction}
                         />
                     )}
 

@@ -75,6 +75,9 @@ export const authAPI = {
     refresh: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
     logout: () => api.post('/auth/logout'),
     getProfile: () => api.get('/auth/profile'),
+    changePassword: (data) => api.post('/auth/change-password', data),
+    forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+    resetPassword: (data) => api.post('/auth/reset-password', data),
 };
 
 // Dashboard
@@ -178,17 +181,6 @@ export const expenseAPI = {
     create: (data) => api.post('/expenses', data),
     update: (id, data) => api.put(`/expenses/${id}`, data),
     delete: (id) => api.delete(`/expenses/${id}`),
-};
-
-// Scanner API
-export const scannerAPI = {
-    scanBarcode: (barcode) => api.post('/scanner/barcode', { barcode }),
-    processImage: (formData) => api.post('/scanner/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-    }),
-    processDocument: (formData) => api.post('/scanner/document', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-    })
 };
 
 // B2B Network API

@@ -26,6 +26,9 @@ import PlanCheckoutPage from './pages/PlanCheckoutPage';
 import StoreProfilePage from './pages/B2B/StoreProfilePage';
 import HomePage from './pages/HomePage';
 import PublicPaymentPage from './pages/PublicPaymentPage';
+import ProfilePage from './pages/ProfilePage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 // Super Admin Imports
 import SALayout from './components/superadmin/SALayout';
@@ -52,6 +55,8 @@ export default function App() {
                             <Routes>
                                 <Route path="/login" element={<LoginPage />} />
                                 <Route path="/register" element={<RegisterPage />} />
+                                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                                <Route path="/reset-password" element={<ResetPasswordPage />} />
                                 <Route path="/checkout" element={<ProtectedRoute><PlanCheckoutPage /></ProtectedRoute>} />
                                 {/* Customer Portal — public, separate from business dashboard */}
 
@@ -75,6 +80,7 @@ export default function App() {
                                     <Route path="approvals" element={<ProtectedRoute adminOnly><ApprovalsPage /></ProtectedRoute>} />
                                     <Route path="expenses" element={<ExpensesPage />} />
                                     <Route path="inventory" element={<InventoryPage />} />
+                                    <Route path="profile" element={<ProfilePage />} />
                                 </Route>
 
                                 {/* Super Admin Segment (Currently un-protected for UI preview) */}
