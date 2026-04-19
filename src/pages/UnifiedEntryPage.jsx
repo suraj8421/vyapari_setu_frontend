@@ -23,16 +23,18 @@
 //   ├── [Notes textarea]    — Inline — too simple to extract
 //   ├── EntrySummaryPanel   — Dark right-panel with totals, payment, submit button
 //   └── AuditTrail          — Timeline of past edits (edit mode only)
+//
 
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
+import InvoiceViewModal from '../components/common/InvoiceViewModal';
 
 // ── Custom hook — all business logic lives here ──────────────────
 import { useUnifiedEntry } from '../hooks/useUnifiedEntry';
 
 // ── Sub-components — each handles one visual section ─────────────
-// REFACTOR: These were all inline JSX blocks inside a single 580-line return().
-// Extracting them makes each piece independently readable and testable.
 import EntryTypeSwitcher from '../components/unifiedEntry/EntryTypeSwitcher';
 import EntryHeaderForm from '../components/unifiedEntry/EntryHeaderForm';
 import ItemsTable from '../components/unifiedEntry/ItemsTable';
@@ -54,7 +56,9 @@ function DataLoadingSkeleton() {
 
 export default function UnifiedEntryPage() {
     const { t } = useTranslation();
-
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    
     // REFACTOR: One hook call replaces ~100 lines of state + effect + handler declarations
     const {
         // Transaction type
@@ -73,6 +77,7 @@ export default function UnifiedEntryPage() {
 
         // Event handlers
         handleInputChange,
+        handlePartySelect,
         handleOptionChange,
         addItem,
         removeItem,
@@ -81,17 +86,20 @@ export default function UnifiedEntryPage() {
         removePayment,
         handlePaymentChange,
         handleSubmit,
-        handleScannerAction,
+        handlePaymentSettlement,
+        stores,
+        completedInvoice,
+        setCompletedInvoice,
     } = useUnifiedEntry();
 
-    return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-
-            {/* ── Page Header + Type Switcher ───────────────────── */}
+    /**
+     * UI HELPER: Header with Target Store Selector (Only for Global Admins)
+     */
+    const renderHeader = () => {
+        return (
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-surface-900 tracking-tight">
-                        {/* Show different title based on whether we are creating or editing */}
+                    <h1 className="text-3xl font-extrabold text-surface-900 tracking-tight">
                         {isEditMode ? t('unifiedEntry.editTitle') : t('unifiedEntry.title')}
                     </h1>
                     <p className="text-surface-500 mt-1">
@@ -101,30 +109,29 @@ export default function UnifiedEntryPage() {
                     </p>
                 </div>
 
-                {/* REFACTOR: EntryTypeSwitcher was previously ~30 lines of inline JSX.
-                    Now it's a single self-contained component. */}
+
                 <EntryTypeSwitcher activeType={type} onChange={setType} />
             </div>
+        );
+    };
 
-            {/* ── Show skeleton while loading dropdown data ─────── */}
+    return (
+        <div className="max-w-[1600px] mx-auto pb-20">
+            {renderHeader()}
+
             {dataLoading ? (
                 <DataLoadingSkeleton />
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
-
-                    {/* Section 1 — Date, Party, Delivery Date
-                        REFACTOR: Was ~40 lines of inline JSX. Now a single import. */}
                     <EntryHeaderForm
                         formData={formData}
                         type={type}
                         customers={customers}
                         suppliers={suppliers}
                         onChange={handleInputChange}
+                        onPartySelect={handlePartySelect}
                     />
 
-                    {/* Section 2a — Product Line Items (SALE and PURCHASE only)
-                        REFACTOR: Was ~70 lines of inline JSX table with map().
-                        Now a clean component with its own ItemRow sub-component. */}
                     {(type === 'SALE' || type === 'PURCHASE') && (
                         <ItemsTable
                             items={formData.items}
@@ -134,35 +141,24 @@ export default function UnifiedEntryPage() {
                             onItemChange={handleItemChange}
                             onAddItem={addItem}
                             onRemoveItem={removeItem}
-                            onScannerAction={handleScannerAction}
                         />
                     )}
 
-                    {/* Section 2b — Amount + Category (EXPENSE, PAYMENT, MISC only)
-                        REFACTOR: Was ~25 lines of inline JSX. Now a clean import. */}
                     {(type === 'EXPENSE' || type === 'PAYMENT' || type === 'MISC') && (
                         <SimpleEntryForm
                             formData={formData}
                             type={type}
                             onChange={handleInputChange}
-                            onScannerAction={handleScannerAction}
                         />
                     )}
 
-                    {/* Section 3 — Auto-Actions + Notes + Summary (two-column layout) */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                        {/* Left column: Options + Notes */}
                         <div className="lg:col-span-2 space-y-6">
-
-                            {/* REFACTOR: AutoActionsPanel was ~50 lines of inline JSX.
-                                Now a self-contained accessible component with aria attributes. */}
                             <AutoActionsPanel
                                 options={formData.options}
                                 onChange={handleOptionChange}
                             />
 
-                            {/* Notes textarea — kept inline (too simple to extract) */}
                             <div className="card p-6">
                                 <label className="label flex items-center gap-2 mb-2">
                                     <DocumentTextIcon className="w-5 h-5" />
@@ -178,9 +174,6 @@ export default function UnifiedEntryPage() {
                             </div>
                         </div>
 
-                        {/* Right column: Totals + Payment + Submit + Approval Alert
-                            REFACTOR: EntrySummaryPanel was ~80 lines of inline JSX.
-                            Now a self-contained dark card component. */}
                         <div className="space-y-6">
                             <EntrySummaryPanel
                                 totals={totals}
@@ -190,18 +183,25 @@ export default function UnifiedEntryPage() {
                                 onAddPayment={addPayment}
                                 onRemovePayment={removePayment}
                                 onPaymentChange={handlePaymentChange}
+                                onPaymentSettlement={handlePaymentSettlement}
                             />
 
-                            {/* REFACTOR: AuditTrail was ~35 lines of inline JSX.
-                                Now a timeline component with formatted timestamps,
-                                "Approved/Rejected by" info, and event count badge.
-                                Only renders when in edit mode and history exists. */}
                             {isEditMode && history.length > 0 && (
                                 <AuditTrail history={history} />
                             )}
                         </div>
                     </div>
                 </form>
+            )}
+
+            {completedInvoice && (
+                <InvoiceViewModal 
+                    sale={completedInvoice}
+                    onClose={() => {
+                        setCompletedInvoice(null);
+                        navigate('/dashboard');
+                    }}
+                />
             )}
         </div>
     );

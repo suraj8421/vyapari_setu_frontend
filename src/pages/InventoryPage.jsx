@@ -32,12 +32,9 @@ import {
     HiOutlinePlusCircle,
     HiOutlineArrowDownTray,
     HiOutlineClock,
-    HiOutlineQrCode,
     HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import Modal from '../components/common/Modal';
-import SmartScanModal from '../components/common/SmartScanModal';
-import { HiOutlineSparkles } from 'react-icons/hi2';
 import { productAPI } from '../services/api';
 import { getOrFetch, invalidate } from '../utils/dataCache';
 
@@ -324,6 +321,69 @@ function MovementHistoryModal({ product, isOpen, onClose }) {
     );
 }
 
+// ── Stock Adjustment Modal ──────────────────────────────────────────
+function StockAdjustmentModal({ product, isOpen, onClose, onSuccess }) {
+    const { t } = useTranslation();
+    const [quantity, setQuantity] = useState(1);
+    const [type, setType] = useState('ADD'); // 'ADD' | 'SUBTRACT'
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            await productAPI.adjustStock(product.id, { quantity, type });
+            toast.success(`Successfully ${type === 'ADD' ? 'added' : 'subtracted'} stock`);
+            onSuccess();
+            onClose();
+        } catch (err) {
+            toast.error('Adjustment failed');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`Quick Adjust: ${product?.name}`} maxWidth="max-w-md">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+                    <button
+                        type="button"
+                        onClick={() => setType('ADD')}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${type === 'ADD' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500'}`}
+                    >
+                        Add Stock (+)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setType('SUBTRACT')}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${type === 'SUBTRACT' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500'}`}
+                    >
+                        Reduce Stock (-)
+                    </button>
+                </div>
+                <div>
+                    <label className="input-label">Quantity ({product?.unit})</label>
+                    <input
+                        type="number"
+                        min="1"
+                        value={quantity}
+                        onChange={e => setQuantity(Number(e.target.value))}
+                        className="input-field"
+                        required
+                    />
+                </div>
+                <div className="flex gap-3 pt-4">
+                    <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+                    <button type="submit" disabled={submitting} className={`btn-primary flex-1 ${type === 'SUBTRACT' ? '!bg-orange-600' : '!bg-emerald-600'}`}>
+                        {submitting ? '...' : 'Update Stock'}
+                    </button>
+                </div>
+            </form>
+        </Modal>
+    );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────
 export default function InventoryPage() {
     const { t } = useTranslation();
@@ -345,8 +405,8 @@ export default function InventoryPage() {
 
     const [historyModalOpen, setHistoryModalOpen] = useState(false);
     const [historyTarget, setHistoryTarget] = useState(null);
-    const [scannerOpen, setScannerOpen] = useState(false);
-
+    const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+    const [adjustTarget, setAdjustTarget] = useState(null);
     // Computed derived data
     const [lowStockItems, setLowStockItems] = useState([]);
     const [outOfStockItems, setOutOfStockItems] = useState([]);
@@ -473,14 +533,6 @@ export default function InventoryPage() {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button
-                        onClick={() => setScannerOpen(true)}
-                        className="flex items-center gap-2 p-2.5 rounded-xl border border-primary-200 bg-primary-50 text-primary-700
-                                   hover:bg-primary-100 transition-colors"
-                        title="Smart Scan"
-                    >
-                        <HiOutlineSparkles className="w-5 h-5 text-primary-500" />
-                    </button>
                     {/* Refresh */}
                     <button
                         onClick={fetchInventory}
@@ -748,13 +800,22 @@ export default function InventoryPage() {
                                                     )}
                                                 </td>
                                                 <td className="px-5 py-3 text-center">
-                                                    <button
-                                                        onClick={() => { setHistoryTarget(product); setHistoryModalOpen(true); }}
-                                                        className="p-1.5 rounded-lg text-primary-600 bg-primary-50 hover:bg-primary-100 transition-colors tooltip flex mx-auto"
-                                                        title="View Movement History"
-                                                    >
-                                                        <HiOutlineClock className="w-4 h-4" />
-                                                    </button>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <button
+                                                            onClick={() => { setAdjustTarget(product); setAdjustModalOpen(true); }}
+                                                            className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors tooltip"
+                                                            title="Quick Adjust Stock"
+                                                        >
+                                                            <HiOutlinePlusCircle className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { setHistoryTarget(product); setHistoryModalOpen(true); }}
+                                                            className="p-1.5 rounded-lg text-primary-600 bg-primary-50 hover:bg-primary-100 transition-colors tooltip flex"
+                                                            title="View Movement History"
+                                                        >
+                                                            <HiOutlineClock className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </motion.tr>
                                         );
@@ -792,22 +853,17 @@ export default function InventoryPage() {
                     </div>
                 )}
             </div>
-            {/* Include History Modal */}
+            {/* Include Modals */}
             <MovementHistoryModal
                 isOpen={historyModalOpen}
                 onClose={() => setHistoryModalOpen(false)}
                 product={historyTarget}
             />
-
-            {/* Unified Smart Scan */}
-            <SmartScanModal
-                isOpen={scannerOpen}
-                onClose={() => setScannerOpen(false)}
-                contextType="inventory"
-                onScanComplete={(data) => {
-                    // Navigate to products page to perform edits/creations based on scan
-                    navigate('/products', { state: { scanData: data } });
-                }}
+            <StockAdjustmentModal
+                isOpen={adjustModalOpen}
+                onClose={() => setAdjustModalOpen(false)}
+                product={adjustTarget}
+                onSuccess={fetchInventory}
             />
         </div>
     );

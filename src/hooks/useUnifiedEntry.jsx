@@ -1,5 +1,5 @@
 // ============================================
-// useUnifiedEntry — Custom hook
+// useUnifiedEntry — Custom hook (Updated with Stores state)
 // ============================================
 // REFACTOR: All state, data-fetching, and event handler logic that previously
 // lived directly inside UnifiedEntryPage (making it 580+ lines) has been
@@ -35,6 +35,7 @@ const BLANK_ITEM = {
 // Initial form state — centralised here so it's easy to reset
 const INITIAL_FORM = {
     date: new Date().toISOString().split('T')[0],
+    storeId: '',
     partyId: '',
     mobile: '',
     deliveryDate: '',
@@ -73,6 +74,7 @@ export function useUnifiedEntry() {
     const [customers, setCustomers] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
+    const [stores, setStores] = useState([]);
 
     // REFACTOR: useRef keeps a stable reference to products so handleItemChange
     // can always read the latest list without needing it in its dependency array,
@@ -86,6 +88,9 @@ export function useUnifiedEntry() {
 
     // ─── Form Data ───────────────────────────────────────────
     const [formData, setFormData] = useState({ ...INITIAL_FORM });
+
+    // ─── Post-Success State ─────────────────────────────────
+    const [completedInvoice, setCompletedInvoice] = useState(null);
 
     // ════════════════════════════════════════════════════════
     // Data Fetching
@@ -118,7 +123,21 @@ export function useUnifiedEntry() {
         } finally {
             setDataLoading(false);
         }
-    }, []);
+
+        // NEW: If User is Super Admin (no fixed store), they need the store list
+        // to define the context for entries / creations.
+        if (user?.role === 'ADMIN' && !user?.storeId) {
+            getOrFetch('stores', () => api.get('/stores').then(r => r.data.data || [])).then(storesList => {
+                setStores(storesList);
+                // AUTO-SELECT FIRST STORE for Admin consistency
+                if (storesList.length > 0) {
+                    setFormData(prev => ({ ...prev, storeId: storesList[0].id }));
+                }
+            }).catch(err => {
+                console.warn('[useUnifiedEntry] fetchStores error:', err.message);
+            });
+        }
+    }, [user?.role, user?.storeId]);
 
     // Fetch audit history for the record being edited.
     // Only runs when `id` is present in the URL (edit mode).
@@ -163,6 +182,72 @@ export function useUnifiedEntry() {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     }, []);
+
+    /**
+     * Handle Party (Customer/Supplier) Selection
+     * NEW: Supports quick-creating a customer if it doesn't exist
+     */
+    const handlePartySelect = useCallback(async (item) => {
+        if (!item) return;
+
+        // "Add as New" Logic
+        if (item.id === 'NEW') {
+            const isSale = type === 'SALE' || type === 'PAYMENT';
+            const endpoint = isSale ? '/customers' : '/suppliers';
+            const label = isSale ? 'Customer' : 'Supplier';
+
+            // SAFETY: Super Admin context (Auto-populated in fetchStores)
+            const targetStoreId = user?.storeId || formData.storeId;
+
+            if (!targetStoreId) {
+                toast.error('❌ System Error: No target business context found. Please ensure you have at least one Store created.', { duration: 5000 });
+                return;
+            }
+
+            console.log('[useUnifiedEntry] QuickCreate Payload:', { name: item.name, storeId: targetStoreId, endpoint });
+
+            try {
+                setLoading(true);
+                const phone = window.prompt(`Enter Phone Number for ${item.name} (Optional):`);
+                
+                const res = await api.post(endpoint, { 
+                    name: item.name, 
+                    storeId: targetStoreId,
+                    phone: phone || '' 
+                });
+                
+                const newEntity = res.data.data;
+                
+                setFormData(prev => ({
+                    ...prev,
+                    partyId: newEntity.id || '',
+                    partyName: newEntity.name || '',
+                    mobile: newEntity.phone || '',
+                }));
+
+                // Update local lists so the new entity appears in any subsequent filtered lists
+                if (isSale) setCustomers(prev => [newEntity, ...prev]);
+                else setSuppliers(prev => [newEntity, ...prev]);
+
+                toast.success(`✅ Created new ${label}: ${newEntity.name}`);
+            } catch (err) {
+                const msg = err.response?.data?.message || "Could not save. Check console for details.";
+                toast.error(msg);
+                console.error('[useUnifiedEntry] QuickCreate error:', err.response?.data || err);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Normal Selection
+            setFormData(prev => ({
+                ...prev,
+                partyId: item.id || '',
+                partyName: item.name || '',
+                mobile: item.phone || '',
+            }));
+        }
+    }, [type, user?.storeId, formData.storeId]);
+
 
     // Toggle a boolean option (updateStock, updateLoan, etc.)
     const handleOptionChange = useCallback((optionName) => {
@@ -284,88 +369,6 @@ export function useUnifiedEntry() {
         });
     }, [type]);
 
-    /**
-     * Bulk Add Items (from Scanner)
-     */
-    const bulkAddItems = useCallback((newItemsData) => {
-        setFormData(prev => {
-            const currentItems = [...prev.items];
-            // Remove the first empty row if it hasn't been used yet
-            const filteredItems = currentItems.length === 1 && !currentItems[0].productId && !currentItems[0].productName 
-                ? [] 
-                : currentItems;
-
-            const mapped = newItemsData.map(data => {
-                const item = { ...BLANK_ITEM, ...data };
-                // Ensure cost price is set if it's a purchase
-                if (type === 'PURCHASE' && data.costPrice) item.unitPrice = Number(data.costPrice);
-                if (type === 'SALE' && data.sellingPrice) item.unitPrice = Number(data.sellingPrice);
-                
-                // Recalculate total for the new item
-                const qty = Number(item.quantity || 0);
-                const price = Number(item.unitPrice || 0);
-                const disc = Number(item.discount || 0);
-                const gst = prev.invoiceType === 'GST' ? Number(item.gstRate || 0) : 0;
-                const net = (qty * price) - (qty * disc);
-                item.total = net + (net * gst / 100);
-                
-                return item;
-            });
-
-            return { ...prev, items: [...filteredItems, ...mapped] };
-        });
-    }, [type]);
-
-    /**
-     * Unified Handler for Scanner Actions
-     */
-    const handleScannerAction = useCallback((action, payload) => {
-        // Support for SimpleEntryForm types (EXPENSE, PAYMENT, MISC)
-        if (type === 'EXPENSE' || type === 'PAYMENT' || type === 'MISC') {
-            setFormData(prev => ({
-                ...prev,
-                paidAmount: payload.price || prev.paidAmount,
-                category: payload.name || prev.category,
-                notes: payload.notes || prev.notes
-            }));
-            toast.success(`✅ Scanned data applied to ${type}`);
-            return;
-        }
-
-        if (action === 'BULK_IMPORT') {
-            bulkAddItems(payload);
-        } else if (action === 'OPEN_CREATE_PREFILLED' || action === 'OPEN_EDIT') {
-            // Overwrite the last empty item or add new
-            setFormData(prev => {
-                const items = [...prev.items];
-                const lastIdx = items.length - 1;
-                
-                // If last item is blank, reuse it
-                if (!items[lastIdx].productId && !items[lastIdx].productName) {
-                    items[lastIdx] = { ...items[lastIdx], ...payload };
-                    if (payload.costPrice && type === 'PURCHASE') items[lastIdx].unitPrice = Number(payload.costPrice);
-                    if (payload.sellingPrice && type === 'SALE') items[lastIdx].unitPrice = Number(payload.sellingPrice);
-                } else {
-                    const newItem = { ...BLANK_ITEM, ...payload };
-                    if (payload.costPrice && type === 'PURCHASE') newItem.unitPrice = Number(payload.costPrice);
-                    if (payload.sellingPrice && type === 'SALE') newItem.unitPrice = Number(payload.sellingPrice);
-                    items.push(newItem);
-                }
-                
-                // Trigger line item recalc (simplified here, but handleItemChange logic should ideally be reusable)
-                const finalItems = items.map(it => {
-                    const qty = Number(it.quantity || 0);
-                    const pr = Number(it.unitPrice || 0);
-                    const net = (qty * pr); 
-                    it.total = net + (net * (prev.invoiceType === 'GST' ? Number(it.gstRate) : 0) / 100);
-                    return it;
-                });
-
-                return { ...prev, items: finalItems };
-            });
-        }
-    }, [bulkAddItems, type]);
-
     // Derive grand totals from items list (called on every render — cheap enough)
     const calculateTotals = useCallback(() => {
         const items = formData.items;
@@ -470,44 +473,85 @@ export function useUnifiedEntry() {
     // Form Submission
     // ════════════════════════════════════════════════════════
 
-    const handleSubmit = useCallback(async (e) => {
-        e.preventDefault();
+    const submitTransaction = async (overrides = {}) => {
+        if (type === 'SALE') {
+            const hasCustomerName = !!formData.partyName;
+            const hasCustomerNumber = !!formData.mobile;
+            
+            if (!formData.partyId || !hasCustomerName || !hasCustomerNumber) {
+                toast.custom((t) => (
+                    <div className={`${t.visible ? 'animate-bounce' : 'opacity-0'} max-w-md w-full bg-white border-l-4 border-emerald-400 border-y border-r border-slate-100 shadow-2xl rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all duration-300`}>
+                        <div className="flex-1 w-0 p-4">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0 pt-0.5"><span className="text-2xl">📱</span></div>
+                                <div className="ml-3 flex-1">
+                                    <p className="text-sm font-black text-orange-600 tracking-wide uppercase">Details Needed</p>
+                                    <p className="mt-1 text-xs font-semibold text-orange-700/80 leading-relaxed">
+                                        To send an instant WhatsApp invoice, we need a contact number! Please select or add a <strong className="text-orange-600">Customer</strong> with a phone number.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ), { duration: 5000 });
+                return;
+            }
+        }
+
         setLoading(true);
 
         try {
-            const totals = calculateTotals();
+            const currentTotals = calculateTotals();
+            const finalOptions = overrides.options || formData.options;
+            const finalPaidAmount = overrides.paidAmount !== undefined ? overrides.paidAmount : currentTotals.paidAmount;
+
+            // Filter out empty rows (e.g. user added a row but didn't select a product)
+            let finalItems = formData.items;
+            if (type === 'SALE' || type === 'PURCHASE') {
+                finalItems = formData.items.filter(item => item.productId && item.productId.trim() !== '');
+                if (finalItems.length === 0) {
+                    toast.error("Please add at least one valid product before recording the transaction.");
+                    setLoading(false);
+                    return;
+                }
+            }
 
             const payload = {
                 ...formData,
+                ...overrides, // allows overriding payments array etc.
+                items: finalItems,
                 type,
-                totalAmount: totals.total,
-                paidAmount: totals.paidAmount,
+                options: finalOptions,
+                totalAmount: currentTotals.total,
+                paidAmount: finalPaidAmount,
                 customerId: (type === 'SALE' || type === 'PAYMENT') ? formData.partyId : null,
                 supplierId: type === 'PURCHASE' ? formData.partyId : null,
             };
 
             const res = await api.post('/transactions', payload);
 
-            if (formData.options.generateInvoice && (type === 'SALE' || type === 'PURCHASE')) {
+            if (finalOptions.generateInvoice && (type === 'SALE' || type === 'PURCHASE')) {
                 const partyList = type === 'SALE' ? customers : suppliers;
                 const party = partyList.find(p => p.id === formData.partyId);
 
-                generateInvoicePDF(
-                    {
-                        ...payload,
-                        ...totals,
-                        partyName: party?.name,
-                        mobile: party?.phone,
-                        invoiceNumber: res.data.data?.invoiceNumber,
-                        store: user?.store, // Pass full store details
-                    },
-                    type,
-                    products,
-                );
+                const createdSale = {
+                    ...payload,
+                    ...currentTotals,
+                    id: res.data.data?.id,
+                    invoiceNumber: res.data.data?.invoiceNumber,
+                    createdAt: res.data.data?.createdAt || new Date(),
+                    partyName: party?.name,
+                    mobile: party?.phone,
+                    store: user?.store,
+                    type: type
+                };
+                
+                toast.success(`✅ ${type} recorded successfully!`);
+                setCompletedInvoice(createdSale);
+            } else {
+                toast.success(`✅ ${type} recorded successfully!`);
+                navigate('/dashboard');
             }
-
-            toast.success(`✅ ${type} recorded successfully!`);
-            navigate('/dashboard');
         } catch (err) {
             const msg = err.response?.data?.message || 'Error saving entry. Please try again.';
             toast.error(msg);
@@ -515,7 +559,43 @@ export function useUnifiedEntry() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSubmit = useCallback((e) => {
+        e.preventDefault();
+        submitTransaction();
     }, [formData, type, customers, suppliers, products, calculateTotals, navigate, user?.store]);
+
+    const handlePaymentSettlement = useCallback(() => {
+        const currentTotals = calculateTotals();
+        
+        // Prevent using settle if the amount typed does not EXACTLY match the grand total
+        if (currentTotals.paidAmount < currentTotals.total) {
+                toast.custom((t) => (
+                    <div className={`${t.visible ? 'animate-bounce' : 'opacity-0'} max-w-md w-full bg-white border-l-4 border-emerald-400 border-y border-r border-slate-100 shadow-2xl rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all duration-300`}>
+                        <div className="flex-1 w-0 p-4">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0 pt-0.5"><span className="text-2xl">💡</span></div>
+                                <div className="ml-3 flex-1">
+                                    <p className="text-sm font-black text-orange-600 tracking-wide uppercase">Incomplete Settlement</p>
+                                    <p className="mt-1 text-xs font-semibold text-orange-700/80 leading-relaxed">
+                                        Please enter the exact full settlement amount, or use the standard <strong className="text-orange-600">Record Transaction</strong> button instead!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ), { duration: 5000 });
+            return;
+        }
+
+        // Quick 1-click full payment settlement, skipping ledger update
+        submitTransaction({
+            options: { ...formData.options, updateLoan: false },
+            payments: [{ method: formData.payments[0].method || 'CASH', amount: currentTotals.total }],
+            paidAmount: currentTotals.total,
+        });
+    }, [formData, calculateTotals]);
 
     // ════════════════════════════════════════════════════════
     // Public API (what the page component gets)
@@ -534,6 +614,7 @@ export function useUnifiedEntry() {
 
         // Handlers
         handleInputChange,
+        handlePartySelect,
         handleOptionChange,
         addItem,
         removeItem,
@@ -542,6 +623,9 @@ export function useUnifiedEntry() {
         removePayment,
         handlePaymentChange,
         handleSubmit,
-        handleScannerAction,
+        handlePaymentSettlement,
+        stores,
+        completedInvoice,
+        setCompletedInvoice,
     };
 }

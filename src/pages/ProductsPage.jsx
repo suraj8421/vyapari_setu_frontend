@@ -3,7 +3,6 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { productAPI, storeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -12,12 +11,9 @@ import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import {
     HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash,
-    HiOutlineMagnifyingGlass, HiOutlineFunnel, HiOutlineQrCode
+    HiOutlineMagnifyingGlass,
 } from 'react-icons/hi2';
-import SmartScanModal from '../components/common/SmartScanModal';
-import { HiOutlineSparkles } from 'react-icons/hi2';
 import { getOrFetch } from '../utils/dataCache';
-import { toast } from 'react-hot-toast';
 
 import Translate from '../components/common/Translate';
 
@@ -37,9 +33,6 @@ export default function ProductsPage() {
     const [editProduct, setEditProduct] = useState(null);
     const [saving, setSaving] = useState(false);
 
-    // Scanner integration
-    const [smartScanOpen, setSmartScanOpen] = useState(false);
-
     const emptyForm = {
         name: '', sku: '', barcode: '', category: '', unit: 'PCS',
         costPrice: '', sellingPrice: '', gstRate: 0, hsnCode: '',
@@ -48,21 +41,10 @@ export default function ProductsPage() {
     };
     const [form, setForm] = useState(emptyForm);
 
-    const location = useLocation();
-
     // ─── Products Fetch (Paged/Filtered) ───────────────────
     useEffect(() => {
         fetchProducts();
     }, [page, search, category]);
-
-    // ─── Handle Redirection from Scan ─────────────────────
-    useEffect(() => {
-        if (location.state?.scanAction && location.state?.scanData) {
-            handleScannerAction(location.state.scanAction, location.state.scanData);
-            // Clear state so it doesn't re-trigger on refresh
-            window.history.replaceState({}, document.title);
-        }
-    }, [location.state]);
 
     // ─── Static/Reference Data (Cached) ─────────────────────
     useEffect(() => {
@@ -116,31 +98,6 @@ export default function ProductsPage() {
             initialStock: 0, minStockLevel: product.inventory?.[0]?.minStockLevel || 10,
         });
         setModalOpen(true);
-    };
-
-    const handleScannerAction = async (action, data) => {
-        if (action === 'OPEN_EDIT') {
-            openEdit(data);
-        } else if (action === 'OPEN_CREATE_PREFILLED') {
-            setEditProduct(null);
-            setForm({
-                ...emptyForm,
-                storeId: user?.storeId || stores[0]?.id || '',
-                ...data,
-                minStockLevel: data.minStockLevel || 10
-            });
-            setModalOpen(true);
-        } else if (action === 'BULK_IMPORT') {
-            for (const item of data) {
-                if (item.matchFound) {
-                    await productAPI.update(item.existingProduct.id, { ...item.extracted });
-                } else {
-                    await productAPI.create({ ...item.extracted, storeId: user?.storeId || stores[0]?.id });
-                }
-            }
-            toast.success('Bulk import from document complete!');
-            fetchProducts();
-        }
     };
 
     const handleSubmit = async (e) => {
@@ -228,13 +185,6 @@ export default function ProductsPage() {
                     <p className="text-surface-500 text-sm">{pagination?.total || 0} {t('common.results')}</p>
                 </div>
                 <div className="flex gap-3">
-                    <button
-                        onClick={() => setSmartScanOpen(true)}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-surface-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-105 transition-all shadow-xl shadow-surface-200"
-                    >
-                        <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
-                        Smart Scan
-                    </button>
                     <button onClick={openCreate} className="btn-primary" id="add-product-btn">
                         <HiOutlinePlus className="w-5 h-5" />
                         {t('products.addProduct')}
@@ -432,13 +382,6 @@ export default function ProductsPage() {
                     </div>
                 </form>
             </Modal>
-
-            {/* Unified Smart Scan Modal */}
-            <SmartScanModal
-                isOpen={smartScanOpen}
-                onClose={() => setSmartScanOpen(false)}
-                onAction={handleScannerAction}
-            />
         </div>
     );
 }

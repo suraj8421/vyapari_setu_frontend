@@ -6,8 +6,6 @@ import { PlusIcon, TrashIcon, CubeIcon, ChevronDownIcon, ChevronUpIcon } from '@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import AutocompleteInput from '../common/AutocompleteInput';
-import SmartScanModal from '../common/SmartScanModal';
-import { HiOutlineSparkles } from 'react-icons/hi2';
 
 // ── Single DetailRow (Variable Mode Bag) ──────────────────────────
 function VariableBagEntry({ value, index, onChange, onRemove }) {
@@ -73,133 +71,245 @@ function ItemRow({ item, index, products, invoiceType, onItemChange, onRemoveIte
     };
 
     return (
-        <div className="group border border-surface-200 rounded-2xl bg-white mb-3 shadow-sm hover:shadow-md transition-all overflow-hidden">
+        <div className="group border border-surface-200 rounded-2xl bg-white mb-3 shadow-sm hover:shadow-md transition-all">
             {/* Main Row Grid */}
-            <div className="grid grid-cols-[2fr_120px_140px_160px_120px_100px_100px_120px_40px] gap-2 p-3 items-center text-sm">
-                
-                {/* Product */}
-                <div className="relative">
-                    <AutocompleteInput 
-                        value={item.productName || ''}
-                        onChange={(val) => onItemChange(index, 'productName', val)}
-                        onSelect={(selectedProduct) => onItemChange(index, 'FULL_PRODUCT_SELECTION', selectedProduct)}
-                        endpoint="/products"
-                        placeholder="Select Product..."
-                        className="input h-10 w-full rounded-xl text-[13px] border-surface-100 bg-surface-50 focus:bg-white"
-                    />
-                    {/* Row-level Stock Warning */}
-                    {(() => {
-                        const product = (products || []).find(p => p.id === item.productId);
-                        const available = product?.inventory?.reduce((acc, inv) => acc + inv.quantity, 0) || 0;
-                        if (item.productId && Number(item.quantity || 0) > available) {
-                            return (
-                                <div className="absolute -top-2 -right-1 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-bounce">
-                                    LOW STOCK: {available}
-                                </div>
-                            );
-                        }
-                        return null;
-                    })()}
-                </div>
-
-                {/* Unit */}
-                <div>
-                    <select
-                        value={item.unit || 'PCS'}
-                        onChange={e => onItemChange(index, 'unit', e.target.value)}
-                        className="input h-10 w-full rounded-xl text-xs font-bold border-surface-100 bg-surface-50"
-                    >
-                        <option value="PCS">PCS</option>
-                        <option value="KG">KG</option>
-                        <option value="LTR">LTR</option>
-                        <option value="BAG">BAG</option>
-                        <option value="TONS">TONS</option>
-                        <option value="CUSTOM">Custom</option>
-                    </select>
-                </div>
-
-                {/* Packaging — SIMPLIFIED: No numeric input anymore */}
-                <div>
-                    <select
-                        value={item.packaging?.type || 'boxes'}
-                        onChange={e => onItemChange(index, 'packaging', { ...item.packaging, type: e.target.value })}
-                        className="input h-10 w-full rounded-xl text-xs font-bold border-surface-100 bg-surface-50 uppercase tracking-tighter"
-                    >
-                        <option value="boxes">Boxes</option>
-                        <option value="bags">Bags</option>
-                        <option value="cartons">Cartons</option>
-                        <option value="units">Units</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                </div>
-
-                {/* Quantity Toggle (Clean view) */}
-                <div 
-                    className={`h-10 px-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isExpanded ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500/10' : 'border-surface-100 bg-surface-50 hover:border-surface-300'}`}
-                    onClick={() => setIsExpanded(!isExpanded)}
-                >
-                    <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-surface-400 uppercase leading-none mb-0.5">Total Qty</span>
-                        <span className="font-black text-surface-900 leading-none">{item.quantity || 0}</span>
+            {/* Main Row Layout - Grid for Desktop, Cards for Mobile */}
+            <div className="p-4 lg:p-3">
+                {/* Desktop Version (lg) */}
+                <div className="hidden lg:grid grid-cols-[2fr_120px_140px_160px_120px_100px_100px_120px_40px] gap-2 items-center text-sm">
+                    {/* Product */}
+                    <div className="relative">
+                        <AutocompleteInput 
+                            value={item.productName || ''}
+                            onChange={(val) => onItemChange(index, 'productName', val)}
+                            onSelect={(selectedProduct) => onItemChange(index, 'FULL_PRODUCT_SELECTION', selectedProduct)}
+                            endpoint="/products"
+                            placeholder="Select Product..."
+                            className="input h-10 w-full rounded-xl text-[13px] border-surface-100 bg-surface-50 focus:bg-white"
+                        />
+                        {/* Row-level Stock Warning */}
+                        {(() => {
+                            const product = (products || []).find(p => p.id === item.productId);
+                            const available = product?.inventory?.reduce((acc, inv) => acc + inv.quantity, 0) || 0;
+                            if (item.productId && Number(item.quantity || 0) > available) {
+                                return (
+                                    <div className="absolute -top-2 -right-1 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-bounce">
+                                        LOW STOCK: {available}
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
                     </div>
-                    {isExpanded ? <ChevronUpIcon className="w-4 h-4 text-primary-600" /> : <ChevronDownIcon className="w-4 h-4 text-surface-400" />}
-                </div>
 
-                {/* Rate */}
-                <div>
-                   <input
-                        type="number"
-                        value={item.unitPrice || ''}
-                        onChange={e => onItemChange(index, 'unitPrice', Number(e.target.value))}
-                        className="input h-10 w-full rounded-xl text-center font-bold border-surface-100 bg-surface-50 text-sm"
-                        placeholder="0.00"
-                    />
-                </div>
-
-                {/* Discount */}
-                <div>
-                    <input
-                        type="number"
-                        value={item.discount || ''}
-                        onChange={e => onItemChange(index, 'discount', Number(e.target.value))}
-                        className="input h-10 w-full rounded-xl text-center font-bold border-surface-100 bg-surface-50 text-sm"
-                        placeholder="0"
-                    />
-                </div>
-
-                {/* GST (Dropdown) */}
-                <div>
-                    {invoiceType === 'GST' ? (
+                    {/* Unit */}
+                    <div>
                         <select
-                            value={item.gstRate ?? 18}
-                            onChange={e => onItemChange(index, 'gstRate', Number(e.target.value))}
-                            className="input h-10 w-full rounded-xl text-center font-black border-surface-100 bg-surface-50 text-xs"
+                            value={item.unit || 'PCS'}
+                            onChange={e => onItemChange(index, 'unit', e.target.value)}
+                            className="input h-10 w-full rounded-xl text-xs font-bold border-surface-100 bg-surface-50"
                         >
-                            <option value="0">0%</option>
-                            <option value="5">5%</option>
-                            <option value="12">12%</option>
-                            <option value="18">18%</option>
-                            <option value="28">28%</option>
+                            <option value="PCS">PCS</option>
+                            <option value="KG">KG</option>
+                            <option value="LTR">LTR</option>
+                            <option value="BAG">BAG</option>
+                            <option value="TONS">TONS</option>
+                            <option value="CUSTOM">Custom</option>
                         </select>
-                    ) : (
-                        <div className="text-center text-[10px] font-bold text-surface-400 uppercase opacity-50">Exempt</div>
-                    )}
-                </div>
+                    </div>
 
-                {/* Total */}
-                <div className="text-right font-black text-surface-900 pr-2">
-                    ₹{Number(item.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </div>
+                    {/* Packaging */}
+                    <div>
+                        <select
+                            value={item.packaging?.type || 'boxes'}
+                            onChange={e => onItemChange(index, 'packaging', { ...item.packaging, type: e.target.value })}
+                            className="input h-10 w-full rounded-xl text-xs font-bold border-surface-100 bg-surface-50 uppercase tracking-tighter"
+                        >
+                            <option value="boxes">Boxes</option>
+                            <option value="bags">Bags</option>
+                            <option value="cartons">Cartons</option>
+                            <option value="units">Units</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
 
-                {/* Actions */}
-                <div className="flex justify-center">
-                    <button
-                        type="button"
-                        onClick={() => onRemoveItem(index)}
-                        className="p-1.5 text-surface-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    {/* Quantity Toggle */}
+                    <div 
+                        className={`h-10 px-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isExpanded ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500/10' : 'border-surface-100 bg-surface-50 hover:border-surface-300'}`}
+                        onClick={() => setIsExpanded(!isExpanded)}
                     >
-                        <TrashIcon className="w-5 h-5" />
-                    </button>
+                        <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-surface-400 uppercase leading-none mb-0.5">Total Qty</span>
+                            <span className="font-black text-surface-900 leading-none">{item.quantity || 0}</span>
+                        </div>
+                        {isExpanded ? <ChevronUpIcon className="w-4 h-4 text-primary-600" /> : <ChevronDownIcon className="w-4 h-4 text-surface-400" />}
+                    </div>
+
+                    {/* Rate */}
+                    <div>
+                        <input
+                            type="number"
+                            value={item.unitPrice || ''}
+                            onChange={e => onItemChange(index, 'unitPrice', Number(e.target.value))}
+                            className="input h-10 w-full rounded-xl text-center font-bold border-surface-100 bg-surface-50 text-sm"
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    {/* Discount */}
+                    <div>
+                        <input
+                            type="number"
+                            value={item.discount || ''}
+                            onChange={e => onItemChange(index, 'discount', Number(e.target.value))}
+                            className="input h-10 w-full rounded-xl text-center font-bold border-surface-100 bg-surface-50 text-sm"
+                            placeholder="0"
+                        />
+                    </div>
+
+                    {/* GST */}
+                    <div>
+                        {invoiceType === 'GST' ? (
+                            <select
+                                value={item.gstRate ?? 18}
+                                onChange={e => onItemChange(index, 'gstRate', Number(e.target.value))}
+                                className="input h-10 w-full rounded-xl text-center font-black border-surface-100 bg-surface-50 text-xs"
+                            >
+                                <option value="0">0%</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18">18%</option>
+                                <option value="28">28%</option>
+                            </select>
+                        ) : (
+                            <div className="text-center text-[10px] font-bold text-surface-400 uppercase opacity-50">Exempt</div>
+                        )}
+                    </div>
+
+                    {/* Total */}
+                    <div className="text-right font-black text-surface-900 pr-2">
+                        ₹{Number(item.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-center">
+                        <button
+                            type="button"
+                            onClick={() => onRemoveItem(index)}
+                            className="p-1.5 text-surface-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                            <TrashIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Mobile Version (<lg) */}
+                <div className="lg:hidden space-y-4">
+                    {/* Header: Product Selection & Delete */}
+                    <div className="flex items-start gap-3">
+                        <div className="flex-1 relative">
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block">Product Name</label>
+                            <AutocompleteInput 
+                                value={item.productName || ''}
+                                onChange={(val) => onItemChange(index, 'productName', val)}
+                                onSelect={(selectedProduct) => onItemChange(index, 'FULL_PRODUCT_SELECTION', selectedProduct)}
+                                endpoint="/products"
+                                placeholder="Tap to search products..."
+                                className="input h-12 w-full rounded-2xl text-[14px] border-surface-100 bg-surface-50 focus:bg-white"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => onRemoveItem(index)}
+                            className="mt-6 p-3 text-red-500 bg-red-50 rounded-2xl border border-red-100 active:scale-95 transition-all"
+                        >
+                            <TrashIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Unit & Packaging & Qty Toggle */}
+                    <div className="grid grid-cols-3 gap-3">
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block text-center">Unit</label>
+                            <select
+                                value={item.unit || 'PCS'}
+                                onChange={e => onItemChange(index, 'unit', e.target.value)}
+                                className="input h-12 w-full rounded-2xl text-[12px] font-bold border-surface-100 bg-surface-50 text-center"
+                            >
+                                <option value="PCS">PCS</option>
+                                <option value="KG">KG</option>
+                                <option value="LTR">LTR</option>
+                                <option value="BAG">BAG</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block text-center">Pack</label>
+                            <select
+                                value={item.packaging?.type || 'boxes'}
+                                onChange={e => onItemChange(index, 'packaging', { ...item.packaging, type: e.target.value })}
+                                className="input h-12 w-full rounded-2xl text-[12px] font-bold border-surface-100 bg-surface-50 text-center uppercase"
+                            >
+                                <option value="boxes">Boxes</option>
+                                <option value="bags">Bags</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block text-center">Toggle Qty</label>
+                            <button 
+                                type="button"
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className={`h-12 w-full rounded-2xl border flex items-center justify-center gap-2 transition-all ${isExpanded ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-surface-100 bg-surface-50 text-surface-500'}`}
+                            >
+                                <span className="font-black text-xs">{item.quantity || 0}</span>
+                                {isExpanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Financials: Rate, Disc, GST, Subtotal */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-surface-50 rounded-2xl border border-surface-100">
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block">Rate (₹)</label>
+                            <input
+                                type="number"
+                                value={item.unitPrice || ''}
+                                onChange={e => onItemChange(index, 'unitPrice', Number(e.target.value))}
+                                className="input h-10 w-full rounded-xl text-sm font-bold bg-white"
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block">Disc (₹)</label>
+                            <input
+                                type="number"
+                                value={item.discount || ''}
+                                onChange={e => onItemChange(index, 'discount', Number(e.target.value))}
+                                className="input h-10 w-full rounded-xl text-sm font-bold bg-white"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block">GST %</label>
+                             <select
+                                value={item.gstRate ?? 18}
+                                onChange={e => onItemChange(index, 'gstRate', Number(e.target.value))}
+                                className="input h-10 w-full rounded-xl text-[13px] font-black bg-white"
+                                disabled={invoiceType !== 'GST'}
+                            >
+                                <option value="0">0%</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18">18%</option>
+                                <option value="28">28%</option>
+                            </select>
+                        </div>
+                        <div className="flex flex-col justify-end">
+                            <label className="text-[10px] font-black uppercase text-surface-400 tracking-widest mb-1.5 block text-right">Row Total</label>
+                            <div className="text-right font-black text-primary-600 text-lg">
+                                ₹{Number(item.total || 0).toLocaleString('en-IN')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -336,9 +446,7 @@ function ItemRow({ item, index, products, invoiceType, onItemChange, onRemoveIte
 }
 
 // ── Main ItemsTable Component ──────────────────────────────────────────
-export default function ItemsTable({ items, products, type, invoiceType, onItemChange, onAddItem, onRemoveItem, onScannerAction }) {
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
-
+export default function ItemsTable({ items, products, type, invoiceType, onItemChange, onAddItem, onRemoveItem }) {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between mb-4">
@@ -350,16 +458,6 @@ export default function ItemsTable({ items, products, type, invoiceType, onItemC
                         {items.length} Product{items.length !== 1 ? 's' : ''}
                     </span>
                 </h3>
-
-                {/* Unified Smart Scan Button */}
-                <button
-                    type="button"
-                    onClick={() => setIsScannerOpen(true)}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-surface-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-105 transition-all shadow-xl shadow-surface-200"
-                >
-                    <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
-                    Smart Scan
-                </button>
             </div>
 
             {/* Header Labels (Matching Grid Columns) */}
@@ -411,13 +509,6 @@ export default function ItemsTable({ items, products, type, invoiceType, onItemC
                     Add Product Row
                 </button>
             </div>
-
-            {/* Scanner Modal */}
-            <SmartScanModal 
-                isOpen={isScannerOpen}
-                onClose={() => setIsScannerOpen(false)}
-                onAction={onScannerAction}
-            />
         </div>
     );
 }

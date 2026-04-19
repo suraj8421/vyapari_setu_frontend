@@ -43,7 +43,7 @@ const CreditScoreGauge = ({ score = 100, name = "" }) => {
             <div className={`absolute -top-24 -left-24 w-64 h-64 blur-[100px] opacity-20 ${currentStyle.light} rounded-full`}></div>
             <div className="absolute -bottom-24 -right-24 w-64 h-64 blur-[100px] opacity-10 bg-blue-500 rounded-full"></div>
             
-            {/* HUD Scan Line */}
+            {/* HUD sweep line */}
             <motion.div 
                animate={{ top: ['-10%', '110%'] }}
                transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}

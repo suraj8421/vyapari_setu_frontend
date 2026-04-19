@@ -9,10 +9,7 @@
 //   type     : 'EXPENSE' | 'PAYMENT' | 'MISC'
 //   onChange : standard React input change handler
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { HiOutlineSparkles } from 'react-icons/hi2';
-import SmartScanModal from '../common/SmartScanModal';
 
 // Per-type descriptive placeholder text so staff know what to enter
 const CATEGORY_PLACEHOLDERS = {
@@ -27,22 +24,9 @@ const AMOUNT_LABELS = {
     MISC: 'Miscellaneous Amount',
 };
 
-export default function SimpleEntryForm({ formData, type, onChange, onScannerAction }) {
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
-
+export default function SimpleEntryForm({ formData, type, onChange }) {
     return (
         <div className="space-y-4">
-            <div className="flex justify-end">
-                <button
-                    type="button"
-                    onClick={() => setIsScannerOpen(true)}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-surface-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-105 transition-all shadow-xl shadow-surface-200"
-                >
-                    <HiOutlineSparkles className="w-5 h-5 text-primary-400" />
-                    Smart Scan
-                </button>
-            </div>
-
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -88,17 +72,6 @@ export default function SimpleEntryForm({ formData, type, onChange, onScannerAct
                     )}
                 </div>
             </motion.div>
-
-            {/* Smart Scan Modal */}
-            <SmartScanModal 
-                isOpen={isScannerOpen}
-                onClose={() => setIsScannerOpen(false)}
-                contextType={type.toLowerCase()}
-                onScanComplete={(data) => {
-                    onScannerAction?.('OCR_COMPLETE', data);
-                    setIsScannerOpen(false);
-                }}
-            />
         </div>
     );
 }

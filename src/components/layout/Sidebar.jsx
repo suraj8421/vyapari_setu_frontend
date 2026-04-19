@@ -12,8 +12,6 @@ import {
     HiOutlineCube,
     HiOutlineShoppingCart,
     HiOutlineTruck,
-    HiOutlineUsers,
-    HiOutlineBuildingStorefront,
     HiOutlineDocumentChartBar,
     HiOutlineArrowRightOnRectangle,
     HiOutlineCurrencyRupee,
@@ -43,8 +41,7 @@ export default function Sidebar({ isOpen, onClose }) {
         // NEW: Expenses page — all users can view; was missing from nav entirely
         { to: '/expenses', icon: HiOutlineReceiptRefund, label: t('nav.expenses') },
         { to: '/suppliers', icon: HiOutlineClipboardDocumentList, label: t('nav.suppliers'), adminOnly: true },
-        { to: '/stores', icon: HiOutlineBuildingStorefront, label: t('nav.stores'), adminOnly: true },
-        { to: '/users', icon: HiOutlineUserGroup, label: t('nav.users'), adminOnly: true },
+        { to: '/staff', icon: HiOutlineUserGroup, label: t('nav.staff'), adminOnly: true },
         { to: '/reports', icon: HiOutlineDocumentChartBar, label: t('nav.reports'), adminOnly: true },
         // NEW: Approvals link — only for admins, shows live pending count badge
         {
@@ -75,21 +72,20 @@ export default function Sidebar({ isOpen, onClose }) {
                      border-r border-gray-200 z-50 transform transition-transform duration-300
                      lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
-                {/* Logo */}
-                <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-200">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 
-                          flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary-500/30">
-                        V
-                    </div>
-                    <div>
-                        <h1 className="text-lg font-bold text-gradient">{t('common.appName')}</h1>
-                        <p className="text-[10px] text-surface-500 uppercase tracking-widest">{t('common.tagline')}</p>
-                    </div>
-                </div>
+                {/* Space at the top */}
+                <div className="pt-4" />
 
-                {/* User Info */}
+                {/* User Info (Clickable for Profile) */}
                 <div className="px-4 py-4 border-b border-gray-100">
-                    <div className="flex items-center gap-3 px-2">
+                    <NavLink
+                        to="/profile"
+                        onClick={onClose}
+                        className={({ isActive }) => `flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-200 
+                            ${isActive 
+                                ? 'bg-primary-50 ring-1 ring-primary-100' 
+                                : 'hover:bg-gray-50'
+                            }`}
+                    >
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-accent-400 
                             flex items-center justify-center text-white text-sm font-bold">
                             {user?.firstName?.[0]}{user?.lastName?.[0]}
@@ -102,7 +98,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                 {isAdmin ? t('users.admin') : t('users.staff')}
                             </p>
                         </div>
-                    </div>
+                    </NavLink>
                 </div>
 
                 {/* Navigation */}

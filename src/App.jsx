@@ -12,8 +12,8 @@ import SalesPage from './pages/SalesPage';
 import PurchasesPage from './pages/PurchasesPage';
 import CustomersPage from './pages/CustomersPage';
 import SuppliersPage from './pages/SuppliersPage';
-import StoresPage from './pages/StoresPage';
-import UsersPage from './pages/UsersPage';
+import StaffPage from './pages/StaffPage';
+
 import ReportsPage from './pages/ReportsPage';
 import UnifiedEntryPage from './pages/UnifiedEntryPage';
 import ApprovalsPage from './pages/ApprovalsPage';
@@ -21,8 +21,14 @@ import ExpensesPage from './pages/ExpensesPage';
 import InventoryPage from './pages/InventoryPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
 import NetworkPage from './pages/B2B/NetworkPage';
+import RegisterPage from './pages/RegisterPage';
+import PlanCheckoutPage from './pages/PlanCheckoutPage';
 import StoreProfilePage from './pages/B2B/StoreProfilePage';
 import HomePage from './pages/HomePage';
+import PublicPaymentPage from './pages/PublicPaymentPage';
+import ProfilePage from './pages/ProfilePage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 // Super Admin Imports
 import SALayout from './components/superadmin/SALayout';
@@ -45,49 +51,55 @@ export default function App() {
                 <SocketProvider>
                     <OfflineProvider>
                         <NotificationProvider>
-                        <Toaster position="top-right" />
-                        <Routes>
-                            <Route path="/login" element={<LoginPage />} />
-                            {/* Customer Portal — public, separate from business dashboard */}
+                            <Toaster position="top-right" />
+                            <Routes>
+                                <Route path="/login" element={<LoginPage />} />
+                                <Route path="/register" element={<RegisterPage />} />
+                                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                                <Route path="/checkout" element={<ProtectedRoute><PlanCheckoutPage /></ProtectedRoute>} />
+                                {/* Customer Portal — public, separate from business dashboard */}
 
-                            <Route path="/" element={<HomePage />} />
-                            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                                <Route path="dashboard" element={<DashboardPage />} />
-                                <Route path="products" element={<ProductsPage />} />
-                                <Route path="sales" element={<SalesPage />} />
-                                <Route path="purchases" element={<ProtectedRoute adminOnly><PurchasesPage /></ProtectedRoute>} />
-                                <Route path="b2b/network" element={<NetworkPage />} />
-                                <Route path="b2b/store/:id" element={<StoreProfilePage />} />
-                                <Route path="b2b/invoices" element={<Navigate to="/approvals" replace />} />
-                                <Route path="customers" element={<CustomersPage />} />
-                                <Route path="ledger" element={<Navigate to="/customers?filter=pending" replace />} />
-                                <Route path="suppliers" element={<ProtectedRoute adminOnly><SuppliersPage /></ProtectedRoute>} />
-                                <Route path="stores" element={<ProtectedRoute adminOnly><StoresPage /></ProtectedRoute>} />
-                                <Route path="users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
-                                <Route path="reports" element={<ProtectedRoute adminOnly><ReportsPage /></ProtectedRoute>} />
-                                <Route path="entry" element={<UnifiedEntryPage />} />
-                                <Route path="approvals" element={<ProtectedRoute adminOnly><ApprovalsPage /></ProtectedRoute>} />
-                                <Route path="expenses" element={<ExpensesPage />} />
-                                <Route path="inventory" element={<InventoryPage />} />
-                            </Route>
-                            
-                            {/* Super Admin Segment (Currently un-protected for UI preview) */}
-                            <Route path="/superadmin" element={<SALayout />}>
-                                <Route index element={<Navigate to="dashboard" replace />} />
-                                <Route path="dashboard" element={<SADashboardPage />} />
-                                <Route path="users" element={<SAUsersPage />} />
-                                <Route path="employees" element={<SAEmployeesPage />} />
-                                <Route path="leads" element={<SALeadsPage />} />
-                                <Route path="plans" element={<SAPlansPage />} />
-                                <Route path="payments" element={<SAPaymentsPage />} />
-                                <Route path="reports" element={<SAReportsPage />} />
-                                <Route path="settings" element={<SASettingsPage />} />
-                            </Route>
+                                <Route path="/" element={<HomePage />} />
+                                <Route path="/pay/:id" element={<PublicPaymentPage />} />
+                                <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                                    <Route path="dashboard" element={<DashboardPage />} />
+                                    <Route path="products" element={<ProductsPage />} />
+                                    <Route path="sales" element={<SalesPage />} />
+                                    <Route path="purchases" element={<ProtectedRoute adminOnly><PurchasesPage /></ProtectedRoute>} />
+                                    <Route path="b2b/network" element={<NetworkPage />} />
+                                    <Route path="b2b/store/:id" element={<StoreProfilePage />} />
+                                    <Route path="b2b/invoices" element={<Navigate to="/approvals" replace />} />
+                                    <Route path="customers" element={<CustomersPage />} />
+                                    <Route path="ledger" element={<Navigate to="/customers?filter=pending" replace />} />
+                                    <Route path="suppliers" element={<ProtectedRoute adminOnly><SuppliersPage /></ProtectedRoute>} />
+                                    <Route path="staff" element={<ProtectedRoute adminOnly><StaffPage /></ProtectedRoute>} />
 
-                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                        </Routes>
-                    </NotificationProvider>
-                </OfflineProvider>
+                                    <Route path="reports" element={<ProtectedRoute adminOnly><ReportsPage /></ProtectedRoute>} />
+                                    <Route path="entry" element={<UnifiedEntryPage />} />
+                                    <Route path="approvals" element={<ProtectedRoute adminOnly><ApprovalsPage /></ProtectedRoute>} />
+                                    <Route path="expenses" element={<ExpensesPage />} />
+                                    <Route path="inventory" element={<InventoryPage />} />
+                                    <Route path="profile" element={<ProfilePage />} />
+                                </Route>
+
+                                {/* Super Admin Segment (Currently un-protected for UI preview) */}
+                                <Route path="/superadmin" element={<SALayout />}>
+                                    <Route index element={<Navigate to="dashboard" replace />} />
+                                    <Route path="dashboard" element={<SADashboardPage />} />
+                                    <Route path="users" element={<SAUsersPage />} />
+                                    <Route path="employees" element={<SAEmployeesPage />} />
+                                    <Route path="leads" element={<SALeadsPage />} />
+                                    <Route path="plans" element={<SAPlansPage />} />
+                                    <Route path="payments" element={<SAPaymentsPage />} />
+                                    <Route path="reports" element={<SAReportsPage />} />
+                                    <Route path="settings" element={<SASettingsPage />} />
+                                </Route>
+
+                                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                            </Routes>
+                        </NotificationProvider>
+                    </OfflineProvider>
                 </SocketProvider>
             </AuthProvider>
         </BrowserRouter>

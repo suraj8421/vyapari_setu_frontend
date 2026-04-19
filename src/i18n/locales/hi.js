@@ -86,6 +86,14 @@ const hi = {
             loginTitle: 'वापसी पर स्वागत है',
             signUp: 'साइन अप करें',
             loggingIn: 'लॉगिन हो रहा है...',
+            firstName: 'पहला नाम',
+            lastName: 'अंतिम नाम',
+            signupTitle: 'खाता बनाएं',
+            signupSubtitle: 'अपना व्यवसाय प्रबंधित करने के लिए व्यापरीसेतु से जुड़ें',
+            alreadyHaveAccount: 'पहले से ही एक खाता है?',
+            signingUp: 'खाता बनाया जा रहा है...',
+            register: 'रजिस्टर करें',
+            employeeId: 'कर्मचारी आईडी (ऑनबोर्डिंग एजेंट कोड)',
         },
 
         // ─── Dashboard ──────────────────────────
@@ -148,6 +156,7 @@ const hi = {
             suppliers: 'आपूर्तिकर्ता',
             stores: 'स्टोर',
             users: 'उपयोगकर्ता',
+            staff: 'स्टाफ़ प्रबंधन',
             reports: 'रिपोर्ट्स',
             expenses: 'खर्च',
             approvals: 'मंजूरी',

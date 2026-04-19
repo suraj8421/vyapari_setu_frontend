@@ -13,13 +13,6 @@ export default defineConfig({
         },
     },
     optimizeDeps: {
-        // Force Vite to pre-bundle these (CJS→ESM conversion)
-        include: ['tesseract.js', 'idb', 'pdfjs-dist'],
-        exclude: [],
-    },
-    build: {
-        commonjsOptions: {
-            include: [/tesseract\.js/, /node_modules/],
-        },
+        include: ['idb'],
     },
 });

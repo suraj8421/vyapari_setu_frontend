@@ -185,11 +185,18 @@ export default function SALeadsPage() {
                                         <td className="px-6 py-6" onClick={() => { setEditingLead(lead); setIsModalOpen(true); }}>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center font-black text-gray-400 uppercase text-xs group-hover:bg-red-50 group-hover:text-red-500 transition-colors">
-                                                    {lead.businessName.charAt(0)}
+                                                    {lead.contactName.charAt(0)}
                                                 </div>
-                                                <div>
-                                                    <p className="font-black text-surface-900 group-hover:text-red-600 transition-colors text-base">{lead.businessName}</p>
-                                                    <p className="text-[10px] font-bold text-surface-400 font-mono tracking-tight mt-0.5 uppercase tracking-widest">{lead.contactName}</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-black text-surface-900 group-hover:text-red-600 transition-colors text-base truncate uppercase tracking-tight">{lead.contactName}</p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <p className="text-sm font-medium text-surface-500 truncate max-w-[250px]">{lead.businessName}</p>
+                                                        {lead.notes && (
+                                                            <span className="text-[9px] font-semibold px-1.5 py-0.5 bg-gray-50 border border-gray-100 rounded text-gray-400 italic">
+                                                                + notes
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
