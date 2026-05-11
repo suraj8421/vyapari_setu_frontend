@@ -1,8 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { HiOutlineCheckBadge, HiOutlineBanknotes, HiOutlineDocumentCheck } from 'react-icons/hi2';
+import { saUserAPI } from '../../services/api';
 
 export default function SAPaymentsPage() {
     const [activeTab, setActiveTab] = useState('online');
+    const [loading, setLoading] = useState(true);
+    const [payments, setPayments] = useState([]);
+
+    useEffect(() => {
+        const fetchPayments = async () => {
+            try {
+                console.log('[SA-Payments] Fetching payment history...');
+                const res = await saUserAPI.getPayments();
+                console.log('[SA-Payments] Received data:', res.data);
+                if (res.data.success) {
+                    setPayments(res.data.data);
+                }
+            } catch (e) { 
+                console.error('Failed to fetch payments', e); 
+            }
+            finally { setLoading(false); }
+        };
+        fetchPayments();
+    }, []);
+
+    const manualPayments = payments.filter(p => p.method !== 'ONLINE');
+    const onlinePayments = payments.filter(p => p.method === 'ONLINE');
 
     return (
         <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
@@ -39,31 +62,38 @@ export default function SAPaymentsPage() {
                            <h2 className="text-lg font-black text-emerald-900 flex items-center gap-2"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div> Verified System Webhooks</h2>
                            <span className="font-bold text-sm text-emerald-700 uppercase tracking-widest px-3 py-1 bg-emerald-100 rounded-lg">Razorpay / Stripe Log</span>
                        </div>
-                       <table className="w-full text-left">
-                           <thead className="bg-white">
-                               <tr className="border-b border-gray-100 text-xs font-black text-surface-400 uppercase tracking-widest">
-                                   <th className="px-6 py-5">Verified Txn Date</th>
-                                   <th className="px-6 py-5">Client Source</th>
-                                   <th className="px-6 py-5">Subscribed Plan</th>
-                                   <th className="px-6 py-5 font-mono">Gateway Trace ID</th>
-                                   <th className="px-6 py-5 text-right">Settled Amount</th>
-                               </tr>
-                           </thead>
-                           <tbody className="text-sm divide-y divide-gray-50">
-                               <tr className="hover:bg-emerald-50/50 transition-colors">
-                                   <td className="px-6 py-5 font-bold text-surface-600">20 Oct 2026<br/><span className="text-[10px] text-surface-400 uppercase tracking-widest">14:05:22 IST</span></td>
-                                   <td className="px-6 py-5">
-                                       <p className="font-black text-surface-900">Sharma Retailers</p>
-                                       <p className="text-xs font-bold text-gray-400 font-mono">USR-MH-001</p>
-                                   </td>
-                                   <td className="px-6 py-5"><span className="px-3 py-1 bg-blue-100 text-blue-800 font-black text-[10px] uppercase tracking-widest rounded shadow-sm border border-blue-200">Gold Plan</span></td>
-                                   <td className="px-6 py-5 font-mono text-xs font-black text-emerald-700 tracking-tight flex items-center gap-2 mt-3">
-                                       <HiOutlineCheckBadge className="w-4 h-4 text-emerald-500" /> pay_L98x21zA
-                                   </td>
-                                   <td className="px-6 py-5 text-right font-black text-surface-900 text-lg">₹4,999<span className="text-xs text-green-500 ml-1">✔</span></td>
-                               </tr>
-                           </tbody>
-                       </table>
+                       <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-white">
+                                <tr className="border-b border-gray-100 text-xs font-black text-surface-400 uppercase tracking-widest">
+                                    <th className="px-6 py-5">Verified Txn Date</th>
+                                    <th className="px-6 py-5">Client Source</th>
+                                    <th className="px-6 py-5">Subscribed Plan</th>
+                                    <th className="px-6 py-5 font-mono">Gateway Trace ID</th>
+                                    <th className="px-6 py-5 text-right">Settled Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-sm divide-y divide-gray-50">
+                                {onlinePayments.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-20 text-center text-surface-500 font-medium italic">
+                                            No verified online transactions found.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    onlinePayments.map((p) => (
+                                        <tr key={p.id} className="hover:bg-emerald-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-surface-700">{new Date(p.createdAt).toLocaleDateString()}</td>
+                                            <td className="px-6 py-4 font-bold text-surface-900">{p.user?.firstName} {p.user?.lastName}</td>
+                                            <td className="px-6 py-4 font-semibold text-emerald-600">{p.subscription?.plan?.name || 'Manual'}</td>
+                                            <td className="px-6 py-4 font-mono text-xs text-gray-400">{p.paymentId}</td>
+                                            <td className="px-6 py-4 text-right font-black text-surface-900">₹{(p.amount / 100).toLocaleString('en-IN')}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                       </div>
                     </div>
                 )}
 
@@ -78,38 +108,40 @@ export default function SAPaymentsPage() {
                               + Log Manual Draft
                            </button>
                        </div>
-                       <table className="w-full text-left">
-                           <thead className="bg-white">
-                               <tr className="border-b border-gray-100 text-xs font-black text-surface-400 uppercase tracking-widest">
-                                   <th className="px-6 py-5">Draft Date</th>
-                                   <th className="px-6 py-5">Target Client</th>
-                                   <th className="px-6 py-5">Collection Medium</th>
-                                   <th className="px-6 py-5 text-right">Escrow Auth Amount</th>
-                                   <th className="px-6 py-5 text-center">Approvals</th>
-                               </tr>
-                           </thead>
-                           <tbody className="text-sm divide-y divide-gray-50">
-                               <tr className="hover:bg-red-50/30 transition-colors">
-                                   <td className="px-6 py-5 font-bold text-surface-600">19 Oct 2026</td>
-                                   <td className="px-6 py-5">
-                                       <p className="font-black text-surface-900">Gupta Traders</p>
-                                       <p className="text-xs font-bold text-purple-600 font-mono mt-0.5 border border-purple-200 bg-purple-50 inline-block px-1.5 py-0.5 rounded">BDE: Raj (EMP-11)</p>
-                                   </td>
-                                   <td className="px-6 py-5">
-                                       <span className="inline-flex items-center px-3 py-1.5 rounded bg-gray-100 text-gray-700 font-black text-[10px] uppercase tracking-wider border border-gray-200 shadow-inner">
-                                           Physical Cash
-                                       </span>
-                                   </td>
-                                   <td className="px-6 py-5 text-right font-black text-surface-900 text-lg">₹8,999</td>
-                                   <td className="px-6 py-5 text-center">
-                                       <div className="flex items-center justify-center gap-2">
-                                           <button className="px-3 py-1.5 font-bold text-xs bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 rounded shadow-sm">APPROVE</button>
-                                           <button className="px-3 py-1.5 font-bold text-xs bg-red-100 text-red-800 border border-red-300 hover:bg-red-200 rounded shadow-sm">REJECT</button>
-                                       </div>
-                                   </td>
-                               </tr>
-                           </tbody>
-                       </table>
+                       <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-white">
+                                <tr className="border-b border-gray-100 text-xs font-black text-surface-400 uppercase tracking-widest">
+                                    <th className="px-6 py-5">Draft Date</th>
+                                    <th className="px-6 py-5">Target Client</th>
+                                    <th className="px-6 py-5">Collection Medium</th>
+                                    <th className="px-6 py-5 text-right">Escrow Auth Amount</th>
+                                    <th className="px-6 py-5 text-center">Approvals</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-sm divide-y divide-gray-50">
+                                {manualPayments.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-20 text-center text-surface-500 font-medium italic">
+                                            No manual handover drafts pending approval.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    manualPayments.map((p) => (
+                                        <tr key={p.id} className="hover:bg-red-50/30 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-surface-700">{new Date(p.createdAt).toLocaleDateString()}</td>
+                                            <td className="px-6 py-4 font-bold text-surface-900">{p.user?.firstName} {p.user?.lastName}</td>
+                                            <td className="px-6 py-4 font-semibold text-red-600 uppercase tracking-tighter">{p.method}</td>
+                                            <td className="px-6 py-4 text-right font-black text-surface-900">₹{(p.amount / 100).toLocaleString('en-IN')}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg font-black text-[10px] uppercase">Verified</span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                       </div>
                     </div>
                 )}
             </div>

@@ -5,7 +5,7 @@ import {
     HiOutlineCheck, HiOutlineTrash
 } from 'react-icons/hi2';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { saUserAPI, planAPI, employeeAPI } from '../../services/api';
 
 export default function SAUserProfileModal({ user, onClose }) {
     const [activeTab, setActiveTab] = useState('Overview');
@@ -27,22 +27,22 @@ export default function SAUserProfileModal({ user, onClose }) {
     const fetchProfile = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/sa-users/${user.id}`);
-            const data = await res.json();
-            if (data.success) {
-                setProfileData(data.data);
+            const res = await saUserAPI.getOne(user.id);
+            if (res.data.success) {
+                const data = res.data.data;
+                setProfileData(data);
                 setEditForm({
-                    firstName: data.data.firstName,
-                    lastName: data.data.lastName,
-                    phone: data.data.phone,
-                    notes: data.data.notes,
-                    assignedAgentId: data.data.assignedAgentId || '',
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    phone: data.phone,
+                    notes: data.notes,
+                    assignedAgentId: data.assignedAgentId || '',
                     storeDetails: {
-                        name: data.data.store?.name || '',
-                        address: data.data.store?.address || '',
-                        city: data.data.store?.city || '',
-                        state: data.data.store?.state || '',
-                        pincode: data.data.store?.pincode || ''
+                        name: data.store?.name || '',
+                        address: data.store?.address || '',
+                        city: data.store?.city || '',
+                        state: data.store?.state || '',
+                        pincode: data.store?.pincode || ''
                     }
                 });
             }
@@ -52,11 +52,10 @@ export default function SAUserProfileModal({ user, onClose }) {
     const fetchLookupData = async () => {
         try {
             const [plnRes, empRes] = await Promise.all([
-                fetch(`${API_URL}/plans`), fetch(`${API_URL}/employees`)
+                planAPI.getAll(), employeeAPI.getAll()
             ]);
-            const [plnData, empData] = await Promise.all([plnRes.json(), empRes.json()]);
-            if (plnData.success) setPlans(plnData.data.filter(p => p.isActive));
-            if (empData.success) setEmployees(empData.data);
+            if (plnRes.data.success) setPlans(plnRes.data.data.filter(p => p.isActive));
+            if (empRes.data.success) setEmployees(empRes.data.data);
         } catch (e) { console.error('Lookup failed'); }
     };
 
@@ -64,12 +63,8 @@ export default function SAUserProfileModal({ user, onClose }) {
         e.preventDefault();
         setIsModifying(true);
         try {
-            const res = await fetch(`${API_URL}/sa-users/${user.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editForm)
-            });
-            if (res.ok) {
+            const res = await saUserAPI.update(user.id, editForm);
+            if (res.data.success) {
                 setIsEditing(false);
                 fetchProfile();
             }
@@ -80,8 +75,11 @@ export default function SAUserProfileModal({ user, onClose }) {
         if (!confirm(`Are you sure you want to ${hardData ? 'PERMANENTLY' : 'soft'} delete this user?`)) return;
         setIsModifying(true);
         try {
-            const url = hardData ? `${API_URL}/sa-users/${user.id}/hard` : `${API_URL}/sa-users/${user.id}`;
-            await fetch(url, { method: 'DELETE' });
+            if (hardData) {
+                await saUserAPI.hardDelete(user.id);
+            } else {
+                await saUserAPI.delete(user.id);
+            }
             onClose(true);
         } catch (e) { alert('Delete failed'); } finally { setIsModifying(false); }
     };
@@ -103,20 +101,16 @@ export default function SAUserProfileModal({ user, onClose }) {
         const fd = new FormData(e.target);
         setIsModifying(true);
         try {
-            await fetch(`${API_URL}/sa-users/payments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user.id,
-                    amount: fd.get('amount'),
-                    method: fd.get('method'),
-                    notes: fd.get('notes')
-                })
+            await saUserAPI.addPayment({
+                userId: user.id,
+                amount: fd.get('amount'),
+                method: fd.get('method'),
+                notes: fd.get('notes')
             });
             e.target.reset();
             fetchProfile();
             setActiveTab('Overview'); 
-        } finally { setIsModifying(false); }
+        } catch (e) { alert('Failed to add payment'); } finally { setIsModifying(false); }
     };
 
     const assignPlan = async (e) => {
@@ -124,17 +118,13 @@ export default function SAUserProfileModal({ user, onClose }) {
         const fd = new FormData(e.target);
         setIsModifying(true);
         try {
-            await fetch(`${API_URL}/sa-users/subscriptions/assign`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user.id,
-                    planId: fd.get('planId'),
-                    durationMonths: fd.get('duration')
-                })
+            await saUserAPI.assignSubscription({
+                userId: user.id,
+                planId: fd.get('planId'),
+                durationMonths: fd.get('duration')
             });
             fetchProfile();
-        } finally { setIsModifying(false); }
+        } catch (e) { alert('Failed to assign plan'); } finally { setIsModifying(false); }
     };
 
     if (loading && !profileData) {
@@ -276,7 +266,7 @@ export default function SAUserProfileModal({ user, onClose }) {
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center"><HiOutlineBanknotes className="w-5 h-5"/></div>
                                             <div>
-                                                <p className="text-sm font-black text-surface-900">₹{parseFloat(p.amount).toLocaleString('en-IN')}</p>
+                                                <p className="text-sm font-black text-surface-900">₹{(parseFloat(p.amount) / 100).toLocaleString('en-IN')}</p>
                                                 <p className="text-[10px] uppercase font-bold text-gray-400">{new Date(p.createdAt).toLocaleString()} via {p.method}</p>
                                             </div>
                                         </div>

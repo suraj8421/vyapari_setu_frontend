@@ -281,6 +281,22 @@ export const customerPortalAPI = {
   getPublicDetails: (id) => api.get(`/payments/public/customer/${id}`),
 };
 
+// ---------------------------------------------------------------------
+// Super Admin User API
+// ---------------------------------------------------------------------
+export const saUserAPI = {
+  getAnalytics: () => api.get('/sa-users/stats/summary'),
+  getPayments: () => api.get('/sa-users/history/ledger'),
+  getAll: (params) => api.get('/sa-users', { params }),
+  getOne: (id) => api.get(`/sa-users/${id}`),
+  create: (payload) => api.post('/sa-users', payload),
+  update: (id, payload) => api.put(`/sa-users/${id}`, payload),
+  delete: (id) => api.delete(`/sa-users/${id}`),
+  hardDelete: (id) => api.delete(`/sa-users/${id}/hard`),
+  addPayment: (payload) => api.post('/sa-users/payments', payload),
+  assignSubscription: (payload) => api.post('/sa-users/subscriptions/assign', payload),
+};
+
 // Export the default axios instance for any ad‑hoc calls.
 export default api;
 
