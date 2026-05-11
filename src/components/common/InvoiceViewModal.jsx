@@ -8,6 +8,7 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import { generateInvoicePDF } from '../../utils/pdfGenerator';
 import toast from 'react-hot-toast';
+import Logo from './Logo';
 
 export default function InvoiceViewModal({ sale, onClose }) {
     if (!sale) return null;
@@ -99,17 +100,22 @@ export default function InvoiceViewModal({ sale, onClose }) {
             >
                 {/* Invoice Header */}
                 <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 text-white flex items-start justify-between shrink-0">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <HiOutlineDocumentText className="w-5 h-5" />
-                            <span className="text-xs font-bold uppercase tracking-widest opacity-80">Tax Invoice</span>
+                    <div className="flex items-start gap-4">
+                        <div className="bg-white p-2 rounded-xl shadow-lg">
+                            <Logo variant="icon" />
                         </div>
-                        <h2 className="text-xl font-black">{sale.invoiceNumber}</h2>
-                        <p className="text-xs opacity-75 mt-1">
-                            {new Date(sale.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
-                            {' · '}
-                            {new Date(sale.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <HiOutlineDocumentText className="w-5 h-5" />
+                                <span className="text-xs font-bold uppercase tracking-widest opacity-80">Tax Invoice</span>
+                            </div>
+                            <h2 className="text-xl font-black">{sale.invoiceNumber}</h2>
+                            <p className="text-xs opacity-75 mt-1">
+                                {new Date(sale.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                {' · '}
+                                {new Date(sale.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         {sale.status === 'RETURNED' && (

@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import api from '../../services/api';
+import api, { API_BASE_URL } from '../../services/api';
 
 const translationCache = {};
 
@@ -52,10 +52,7 @@ export default function Translate({ text }) {
         const fetchTranslation = async () => {
             try {
                 const token = localStorage.getItem('token');
-                // Use environment variable for URL if possible, otherwise default
-                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-                const res = await fetch(`${baseUrl}/translate`, {
+                const res = await fetch(`${API_BASE_URL}/translate`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

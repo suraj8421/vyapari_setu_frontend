@@ -12,6 +12,18 @@ export default defineConfig({
             },
         },
     },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+                    'ui-vendor': ['framer-motion', 'react-icons/hi2', 'react-hot-toast'],
+                    'pdf-vendor': ['jspdf', 'jspdf-autotable'],
+                },
+            },
+        },
+        chunkSizeWarningLimit: 1000,
+    },
     optimizeDeps: {
         include: ['idb'],
     },

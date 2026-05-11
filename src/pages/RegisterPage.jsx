@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { planAPI } from '../services/api';
 import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineUser, HiOutlinePhone, HiOutlineEye, HiOutlineEyeSlash, HiOutlineBuildingStorefront, HiOutlineArrowRight, HiOutlineCheckCircle } from 'react-icons/hi2';
+import Logo from '../components/common/Logo';
 
 export default function RegisterPage() {
     const { t, i18n } = useTranslation();
@@ -92,14 +93,8 @@ export default function RegisterPage() {
 
             <div className="w-full max-w-xl relative z-10 animate-fade-in">
                 {/* Logo */}
-                <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl 
-                          bg-gradient-to-br from-primary-500 to-accent-500 
-                          shadow-xl shadow-primary-500/30 mb-3">
-                        <span className="text-2xl font-bold text-white">V</span>
-                    </div>
-                    <h1 className="text-2xl font-bold text-gradient mb-1">{t('common.appName')}</h1>
-                    <p className="text-surface-500 text-xs">{t('common.tagline')}</p>
+                <div className="flex flex-col items-center mb-8">
+                    <Logo variant="login" />
                 </div>
 
                 {/* Card */}

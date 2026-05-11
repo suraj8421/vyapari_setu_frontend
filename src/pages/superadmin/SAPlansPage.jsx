@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Pencil, Trash2, X, Check, PackageOpen, BadgeAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../services/api';
 
 const calculateDurationDays = (durationValue, durationUnit) => {
     const value = parseInt(durationValue) || 0;
@@ -73,7 +73,7 @@ export default function PlansManagement() {
         try {
             setLoading(true);
             const token = localStorage.getItem('accessToken');
-            const res = await fetch(`${API_BASE_URL}/api/plans/admin`, {
+            const res = await fetch(`${API_BASE_URL}/plans/admin`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -174,7 +174,7 @@ export default function PlansManagement() {
         try {
             let res;
             if (isEditModalOpen) {
-                res = await fetch(`${API_BASE_URL}/api/plans/${currentPlan._id}`, {
+                res = await fetch(`${API_BASE_URL}/plans/${currentPlan._id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -183,7 +183,7 @@ export default function PlansManagement() {
                     body: JSON.stringify(payload)
                 });
             } else {
-                res = await fetch(`${API_BASE_URL}/api/plans`, {
+                res = await fetch(`${API_BASE_URL}/plans`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ export default function PlansManagement() {
     const handleDelete = async () => {
         try {
             const token = localStorage.getItem('accessToken');
-            const res = await fetch(`${API_BASE_URL}/api/plans/${currentPlan._id}`, {
+            const res = await fetch(`${API_BASE_URL}/plans/${currentPlan._id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
