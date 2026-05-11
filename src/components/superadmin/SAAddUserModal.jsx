@@ -3,7 +3,7 @@ import {
     HiOutlineXMark, HiOutlineBriefcase, HiOutlineCurrencyRupee
 } from 'react-icons/hi2';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { saUserAPI, planAPI } from '../../services/api';
 
 export default function SAAddUserModal({ onClose, employees = [] }) {
     const [isLoading, setIsLoading] = useState(false);
@@ -23,9 +23,8 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
 
     const fetchPlans = async () => {
         try {
-            const res = await fetch(`${API_URL}/plans`);
-            const data = await res.json();
-            if (data.success) setPlans(data.data);
+            const res = await planAPI.getAll();
+            if (res.data.success) setPlans(res.data.data);
         } catch (e) {
             console.error('Error fetching plans');
         }
@@ -45,19 +44,14 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_URL}/sa-users`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
-            if (data.success) {
+            const res = await saUserAPI.create(formData);
+            if (res.data.success) {
                 onClose(true);
             } else {
-                alert(data.message || 'Error occurred');
+                alert(res.data.message || 'Error occurred');
             }
         } catch (error) {
-            alert('Failed to connect');
+            alert(error.response?.data?.message || 'Failed to connect');
         } finally {
             setIsLoading(false);
         }
@@ -91,7 +85,7 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
                             <label className="block text-xs font-black text-gray-500 uppercase mb-1.5">Select Plan *</label>
                             <select required name="planId" value={formData.planId} onChange={handleChange} className="w-full form-input">
                                 <option value="">-- Choose Plan --</option>
-                                {plans.map(p => <option key={p.id} value={p.id}>{p.name} (₹{p.price})</option>)}
+                                {plans.map(p => <option key={p._id} value={p._id}>{p.name} (₹{p.price})</option>)}
                             </select>
                         </div>
                     </div>
@@ -126,7 +120,7 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
                                 <input 
                                     name="amountReceived" 
                                     type="number" 
-                                    placeholder={formData.planId ? plans.find(p => p.id === formData.planId)?.price : '0'}
+                                    placeholder={formData.planId ? plans.find(p => p._id === formData.planId)?.price : '0'}
                                     value={formData.amountReceived} 
                                     onChange={handleChange} 
                                     className="w-full form-input" 

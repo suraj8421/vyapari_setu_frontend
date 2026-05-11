@@ -8,7 +8,7 @@ import {
 import SAUserProfileModal from '../../components/superadmin/SAUserProfileModal';
 import SAAddUserModal from '../../components/superadmin/SAAddUserModal';
 
-import { API_BASE_URL } from '../../services/api';
+import { saUserAPI, employeeAPI } from '../../services/api';
 
 export default function SAUsersPage() {
     const [users, setUsers] = useState([]);
@@ -30,43 +30,34 @@ export default function SAUsersPage() {
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
 
     useEffect(() => {
-        fetchAnalytics();
-        fetchEmployees();
-    }, []);
-
-    useEffect(() => {
         fetchUsers();
-    }, [page, search, statusFilter, employeeFilter]);
+        fetchEmployees();
+    }, [page, statusFilter, employeeFilter, search]);
 
-    const fetchAnalytics = async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/sa-users/analytics`);
-            const data = await res.json();
-            if (data.success) setAnalytics(data.data);
-        } catch (e) { console.error('Error fetching CRM analytics', e); }
-    };
+
+
+
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/employees`);
-            const data = await res.json();
-            if (data.success) setEmployees(data.data);
+            const res = await employeeAPI.getAll();
+            if (res.data.success) setEmployees(res.data.data);
         } catch (e) { console.error('Error fetching employees'); }
     };
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({ page, limit: 12 });
-            if (search) params.append('search', search);
-            if (statusFilter !== 'All Status') params.append('status', statusFilter);
-            if (employeeFilter) params.append('employeeId', employeeFilter);
+            const params = { page, limit: 12 };
+            if (search) params.search = search;
+            if (statusFilter !== 'All Status') params.status = statusFilter;
+            if (employeeFilter) params.employeeId = employeeFilter;
 
-            const res = await fetch(`${API_BASE_URL}/sa-users?${params.toString()}`);
-            const data = await res.json();
-            if (data.success) {
-                setUsers(data.data);
-                setTotalUsers(data.pagination.total);
+            const res = await saUserAPI.getAll(params);
+            if (res.data.success) {
+                setUsers(res.data.data);
+                setTotalUsers(res.data.pagination.total);
+                if (res.data.analytics) setAnalytics(res.data.analytics);
             }
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -285,7 +276,12 @@ export default function SAUsersPage() {
 
             {isAddUserOpen && (
                 <SAAddUserModal 
-                    onClose={(refresh) => { setIsAddUserOpen(false); if(refresh) fetchUsers(); }} 
+                    onClose={(refresh) => { 
+                        setIsAddUserOpen(false); 
+                        if(refresh) {
+                            fetchUsers();
+                        } 
+                    }} 
                     employees={employees}
                 />
             )}
