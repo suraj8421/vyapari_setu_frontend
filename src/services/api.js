@@ -182,6 +182,25 @@ export const saLeadsAPI = {
   create: (payload) => api.post('/sales-leads', payload),
   update: (id, payload) => api.put(`/sales-leads/${id}`, payload),
   delete: (id) => api.delete(`/sales-leads/${id}`),
+  export: () => api.get('/sales-leads/export', { responseType: 'blob' }),
+};
+
+// ---------------------------------------------------------------------
+// Super Admin Dashboard API
+// ---------------------------------------------------------------------
+export const saDashboardAPI = {
+  getStats: (range) => api.get('/sa-dashboard/stats', { params: { range } }),
+  getGrowth: () => api.get('/sa-dashboard/growth'),
+};
+
+// ---------------------------------------------------------------------
+// Super Admin Reports API
+// ---------------------------------------------------------------------
+export const saReportsAPI = {
+  exportClients: () => api.get('/sa-reports/export/clients', { responseType: 'blob' }),
+  exportEmployees: () => api.get('/sa-reports/export/employees', { responseType: 'blob' }),
+  exportPayments: () => api.get('/sa-reports/export/payments', { responseType: 'blob' }),
+  exportSubscriptions: () => api.get('/sa-reports/export/subscriptions', { responseType: 'blob' }),
 };
 
 // ---------------------------------------------------------------------
