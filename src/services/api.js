@@ -248,6 +248,20 @@ export const paymentAPI = {
   getPublicCustomer: (id) => api.get(`/payments/public/customer/${id}`),
 };
 
+// ---------------------------------------------------------------------
+// Customer Portal API
+// ---------------------------------------------------------------------
+export const customerPortalAPI = {
+  login: (payload) => api.post('/customer-portal/login', payload),
+  register: (payload) => api.post('/customer-portal/register', payload),
+  logout: () => api.post('/customer-portal/logout'),
+  getNotifications: (params) => api.get('/customer-portal/notifications', { params }),
+  acceptNotification: (id) => api.put(`/customer-portal/notifications/${id}/accept`),
+  rejectNotification: (id, reason) => api.put(`/customer-portal/notifications/${id}/reject`, { reason }),
+  getPurchases: () => api.get('/customer-portal/purchases'),
+  getPublicDetails: (id) => api.get(`/payments/public/customer/${id}`),
+};
+
 // Export the default axios instance for any ad‑hoc calls.
 export default api;
 
