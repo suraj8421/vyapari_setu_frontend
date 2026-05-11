@@ -1,231 +1,164 @@
-// ============================================
-// PDF Invoice Generator Utility (VyapariSetu)
-// ============================================
-
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 /**
- * Helper: Convert Number to Words (Indian Format)
+ * Professional PDF Invoice Generator for VyapariSetu
+ * @param {Object} data - Invoice data (sale/purchase)
+ * @param {string} type - 'SALE' or 'PURCHASE'
+ * @param {Array} productsMetadata - Optional product metadata (e.g., categories, descriptions)
  */
-const numberToWords = (num) => {
-    const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
-    const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-
-    const inWords = (n) => {
-        if (n < 20) return a[n];
-        if (n < 100) return b[Math.floor(n / 10)] + ' ' + a[n % 10];
-        if (n < 1000) return a[Math.floor(n / 100)] + 'hundred ' + inWords(n % 100);
-        if (n < 100000) return inWords(Math.floor(n / 1000)) + 'thousand ' + inWords(n % 1000);
-        if (n < 10000000) return inWords(Math.floor(n / 100000)) + 'lakh ' + inWords(n % 100000);
-        return inWords(Math.floor(n / 10000000)) + 'crore ' + inWords(n % 10000000);
-    };
-
-    const whole = Math.floor(num);
-    const fraction = Math.round((num - whole) * 100);
-
-    let str = inWords(whole) + 'rupees ';
-    if (fraction > 0) {
-        str += 'and ' + inWords(fraction) + 'paise ';
+export const generateInvoicePDF = (data, type = 'SALE', productsMetadata = []) => {
+    const doc = new jsPDF();
+    const isSale = type === 'SALE' || type === 'PAYMENT';
+    const label = isSale ? 'TAX INVOICE' : 'PURCHASE RECORD';
+    const partyLabel = isSale ? 'Bill To:' : 'Supplier:';
+    
+    // -- Configuration --
+    const margin = 15;
+    const primaryColor = [37, 99, 235]; // Tailwind blue-600
+    const secondaryColor = [71, 85, 105]; // Tailwind slate-600
+    
+    // -- Header --
+    doc.setFontSize(22);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.text(data.store?.name || 'VyapariSetu', margin, 25);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.store?.address || '', margin, 32);
+    doc.text(`${data.store?.city || ''} ${data.store?.pincode || ''}`, margin, 37);
+    doc.text(`Phone: ${data.store?.phone || ''}`, margin, 42);
+    if (data.store?.gstNumber) {
+        doc.text(`GSTIN: ${data.store.gstNumber}`, margin, 47);
     }
-    return str.toUpperCase() + 'ONLY';
-};
-
-/**
- * Generates a professional PDF Invoice for a Sale or Purchase.
- * If returnBlob is true, it returns the PDF as a Blob instead of downloading it.
- */
-export const generateInvoicePDF = (data, type = 'SALE', productMap = [], returnBlob = false) => {
-    try {
-        const doc = new jsPDF();
-        const isSale = type === 'SALE';
-        const isGST = data.invoiceType === 'GST';
-        const primaryColor = [37, 99, 235];
-
-        const productNameMap = {};
-        for (const p of productMap) productNameMap[p.id] = p.name;
-
-        // Header background
-        doc.setFillColor(...primaryColor);
-        doc.rect(0, 0, 210, 45, 'F');
-
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.setFont('helvetica', 'bold');
-        doc.text(data.store?.name || 'VYAPARISETU STORE', 15, 20);
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        const storeDetails = [
-            data.store?.address,
-            `${data.store?.city || ''} ${data.store?.state || ''} ${data.store?.pincode || ''}`.trim(),
-            `Phone: ${data.store?.phone || ''}`,
-            data.store?.gstNumber ? `GSTIN: ${data.store.gstNumber}` : null,
-        ].filter(Boolean);
-        storeDetails.forEach((line, i) => doc.text(line, 15, 27 + i * 4));
-
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(isGST ? 'TAX INVOICE' : 'BILL OF SUPPLY', 195, 20, { align: 'right' });
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Invoice #: ${data.invoiceNumber || 'DRAFT'}`, 195, 28, { align: 'right' });
-        doc.text(`Date: ${new Date(data.date || Date.now()).toLocaleDateString()}`, 195, 33, { align: 'right' });
-
-        // Party details
-        const partyY = 55;
-        doc.setTextColor(100, 100, 100);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text(isSale ? 'BILL TO:' : 'SUPPLIER:', 15, partyY);
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(12);
-        doc.text(data.partyName || (isSale ? 'Walk-in Customer' : 'Unknown Supplier'), 15, partyY + 6);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Phone: ${data.mobile || 'N/A'}`, 15, partyY + 11);
-
-        // Items table
-        const tableColumn = [
-            '#', 'Product Description', 'HSN/SAC', 'Qty', 'Unit', 'Rate',
-            ...(isGST ? ['GST %'] : []),
-            'Total',
-        ];
-
-        const tableRows = (data.items || []).map((item, i) => [
-            i + 1,
-            productNameMap[item.productId] || item.productName || 'Product',
-            item.hsn || '---',
-            item.unit === 'BOX' ? `${item.boxes} BOX (${item.quantity} PCS)` : item.quantity,
-            item.unit || 'PCS',
-            Number(item.unitPrice || 0).toFixed(2),
-            ...(isGST ? [`${item.gstRate || 0}%`] : []),
-            Number(item.total || 0).toFixed(2),
-        ]);
-
-        autoTable(doc, {
-            startY: 75,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'grid',
-            headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
-            styles: { fontSize: 8, cellPadding: 3 },
-            columnStyles: {
-                0: { halign: 'center' },
-                3: { halign: 'center' },
-                5: { halign: 'right' },
-                6: { halign: 'center' },
-                7: { halign: 'right' },
-            },
-        });
-
-        let finalY = doc.lastAutoTable.finalY + 10;
-
-        // GST breakdown table
-        if (isGST && data.tax > 0) {
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Tax Breakdown:', 15, finalY);
-
-            const slabs = {};
-            (data.items || []).forEach((it) => {
-                if (it.gstRate > 0) {
-                    const sub = it.quantity * it.unitPrice - (it.discount || 0);
-                    const taxVal = sub * (it.gstRate / 100);
-                    if (!slabs[it.gstRate]) slabs[it.gstRate] = { taxable: 0, tax: 0 };
-                    slabs[it.gstRate].taxable += sub;
-                    slabs[it.gstRate].tax += taxVal;
-                }
-            });
-
-            const taxData = Object.entries(slabs).map(([rate, vals]) => [
-                `${rate}% GST`,
-                vals.taxable.toFixed(2),
-                (vals.tax / 2).toFixed(2),
-                (vals.tax / 2).toFixed(2),
-                vals.tax.toFixed(2),
-            ]);
-
-            autoTable(doc, {
-                startY: finalY + 2,
-                head: [['Slab', 'Taxable Val', 'CGST', 'SGST', 'Total Tax']],
-                body: taxData,
-                theme: 'plain',
-                styles: { fontSize: 7, cellPadding: 1 },
-                margin: { left: 15 },
-                tableWidth: 100,
-            });
-
-            finalY = doc.lastAutoTable.finalY + 10;
-        }
-
-        // Totals
-        const summaryX = 140;
-        const valueX = 195;
-
-        doc.setFontSize(9);
-        doc.setTextColor(100, 100, 100);
-        doc.setFont('helvetica', 'normal');
-
-        doc.text('Subtotal:', summaryX, finalY);
-        doc.text(`Rs. ${Number(data.subtotal || 0).toFixed(2)}`, valueX, finalY, { align: 'right' });
-
-        if (isGST) {
-            doc.text('GST Amount:', summaryX, finalY + 5);
-            doc.text(`Rs. ${Number(data.tax || 0).toFixed(2)}`, valueX, finalY + 5, { align: 'right' });
-        }
-
-        if (data.discount > 0) {
-            doc.text('Total Discount:', summaryX, finalY + 10);
-            doc.text(`(-) Rs. ${Number(data.discount || 0).toFixed(2)}`, valueX, finalY + 10, { align: 'right' });
-            finalY += 5;
-        }
-
-        doc.setFontSize(12);
-        doc.setTextColor(...primaryColor);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Grand Total:', summaryX, finalY + 12);
-        doc.text(`Rs. ${Number(data.total || 0).toFixed(2)}`, valueX, finalY + 12, { align: 'right' });
-
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(8);
-        doc.text(`Amount in Words: ${numberToWords(data.total || 0)}`, 15, finalY + 25);
-
-        // Payment summary
-        if (data.payments && data.payments.length > 0) {
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Payment Summary:', 15, finalY + 35);
-            let payY = finalY + 40;
-            data.payments.forEach((p) => {
-                if (p.amount > 0) {
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(`${p.method}: Rs. ${Number(p.amount).toFixed(2)}`, 15, payY);
-                    payY += 4;
-                }
-            });
-        }
-
-        // Footer
-        const footerY = 260;
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text('Terms & Conditions:', 15, footerY);
-        doc.text('1. Goods once sold will not be taken back.', 15, footerY + 4);
-        doc.text('2. Interest @ 18% will be charged if not paid within 7 days.', 15, footerY + 8);
-        doc.text('For ' + (data.store?.name || 'Authorized Signatory'), 195, footerY + 15, { align: 'right' });
-        doc.rect(150, footerY + 20, 45, 15);
-        doc.text('Authorised Signatory', 172.5, footerY + 38, { align: 'center' });
-
-        if (returnBlob) {
-            return doc.output('blob');
-        } else {
-            doc.save(`Invoice_${data.invoiceNumber || 'Draft'}.pdf`);
-            return null;
-        }
-    } catch (err) {
-        console.error('[pdfGenerator] PDF generation failed:', err);
-        return null;
+    
+    // -- Invoice Info (Top Right) --
+    doc.setFontSize(14);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, 200 - margin, 25, { align: 'right' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Invoice #: ${data.invoiceNumber || 'N/A'}`, 200 - margin, 32, { align: 'right' });
+    doc.text(`Date: ${new Date(data.date || data.createdAt).toLocaleDateString('en-IN')}`, 200 - margin, 37, { align: 'right' });
+    doc.text(`Type: ${data.invoiceType || 'NON_GST'}`, 200 - margin, 42, { align: 'right' });
+    
+    // -- Billing Info --
+    const billY = 60;
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.line(margin, billY - 5, 200 - margin, billY - 5);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text(partyLabel, margin, billY);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(data.partyName || 'Walk-in Customer', margin, billY + 7);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont('helvetica', 'normal');
+    if (data.mobile) doc.text(`Phone: ${data.mobile}`, margin, billY + 13);
+    
+    // -- Items Table --
+    const tableData = (data.items || []).map((item, index) => [
+        index + 1,
+        item.productName || 'Product',
+        `${item.quantity} ${item.unit || 'PCS'}`,
+        Number(item.unitPrice).toFixed(2),
+        item.gstRate ? `${item.gstRate}%` : '0%',
+        Number(item.total).toFixed(2)
+    ]);
+    
+    doc.autoTable({
+        startY: billY + 25,
+        head: [['#', 'Item Description', 'Qty', 'Rate', 'GST', 'Amount']],
+        body: tableData,
+        headStyles: { 
+            fillColor: primaryColor,
+            fontSize: 10,
+            halign: 'center'
+        },
+        columnStyles: {
+            0: { halign: 'center', cellWidth: 10 },
+            1: { halign: 'left' },
+            2: { halign: 'center', cellWidth: 25 },
+            3: { halign: 'right', cellWidth: 25 },
+            4: { halign: 'center', cellWidth: 20 },
+            5: { halign: 'right', cellWidth: 30 }
+        },
+        theme: 'striped',
+        margin: { left: margin, right: margin }
+    });
+    
+    // -- Summary Section --
+    const finalY = doc.lastAutoTable.finalY + 10;
+    const summaryX = 140;
+    
+    doc.setFontSize(10);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    
+    doc.text('Subtotal:', summaryX, finalY);
+    doc.text(Number(data.subtotal || 0).toFixed(2), 200 - margin, finalY, { align: 'right' });
+    
+    if (data.tax > 0) {
+        doc.text('GST:', summaryX, finalY + 7);
+        doc.text(Number(data.tax).toFixed(2), 200 - margin, finalY + 7, { align: 'right' });
     }
+    
+    if (data.discount > 0) {
+        doc.setTextColor(220, 38, 38); // red-600
+        doc.text('Discount:', summaryX, finalY + 14);
+        doc.text(`- ${Number(data.discount).toFixed(2)}`, 200 - margin, finalY + 14, { align: 'right' });
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    }
+    
+    const totalY = finalY + 22;
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.rect(summaryX - 5, totalY - 6, 60 + 5, 10, 'F');
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('Grand Total:', summaryX, totalY);
+    doc.text(`INR ${Number(data.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200 - margin, totalY, { align: 'right' });
+    
+    // -- Paid / Balance --
+    const paid = data.payments?.reduce((acc, p) => acc + Number(p.amount), 0) || data.paidAmount || 0;
+    const balance = Math.max(0, Number(data.total || 0) - paid);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text(`Paid via ${data.payments?.[0]?.method || 'CASH'}:`, summaryX, totalY + 10);
+    doc.text(Number(paid).toFixed(2), 200 - margin, totalY + 10, { align: 'right' });
+    
+    if (balance > 0) {
+        doc.setTextColor(220, 38, 38); // red-600
+        doc.text('Balance Due:', summaryX, totalY + 17);
+        doc.text(Number(balance).toFixed(2), 200 - margin, totalY + 17, { align: 'right' });
+    }
+    
+    // -- Footer --
+    const footerY = 275;
+    doc.setFontSize(8);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text('Terms & Conditions:', margin, footerY - 10);
+    doc.text('1. Goods once sold will not be taken back.', margin, footerY - 5);
+    doc.text('2. Subject to local jurisdiction.', margin, footerY);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('For ' + (data.store?.name || 'VyapariSetu'), 200 - margin, footerY - 10, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text('Authorized Signatory', 200 - margin, footerY, { align: 'right' });
+    
+    // -- Save --
+    const filename = `${isSale ? 'Invoice' : 'Purchase'}_${data.invoiceNumber || 'Draft'}.pdf`;
+    doc.save(filename);
 };

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { HiOutlineChartBar, HiOutlineCubeTransparent, HiOutlineUsers, HiOutlineReceiptRefund, HiOutlineShieldCheck, HiOutlineDevicePhoneMobile, HiCheckCircle, HiOutlinePhone } from 'react-icons/hi2';
 import { planAPI, saLeadsAPI } from '../services/api';
+import Logo from '../components/common/Logo';
 
 export default function HomePage() {
     const [plans, setPlans] = useState([]);
@@ -75,13 +76,7 @@ export default function HomePage() {
             {/* Navigation Bar */}
             <nav className="relative z-50 flex items-center justify-between px-6 lg:px-12 py-6">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/30">
-                        <span className="text-2xl font-black text-white">V</span>
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">VyapariSetu</h1>
-                        <p className="text-[10px] uppercase tracking-widest text-primary-300 font-semibold">Inventory & Ledger</p>
-                    </div>
+                    <Logo variant="full" />
                 </div>
                 <div className="flex items-center gap-4">
                     <button

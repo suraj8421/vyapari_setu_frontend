@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
 
+import Logo from '../components/common/Logo';
+
 export default function LoginPage() {
     const { t, i18n } = useTranslation();
     const { login, loading, error, setError } = useAuth();
@@ -41,14 +43,8 @@ export default function LoginPage() {
 
             <div className="w-full max-w-md relative z-10 animate-fade-in">
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
-                          bg-gradient-to-br from-primary-500 to-accent-500 
-                          shadow-2xl shadow-primary-500/30 mb-4">
-                        <span className="text-3xl font-bold text-white">V</span>
-                    </div>
-                    <h1 className="text-3xl font-bold text-gradient mb-1">{t('common.appName')}</h1>
-                    <p className="text-surface-500 text-sm">{t('common.tagline')}</p>
+                <div className="flex flex-col items-center mb-10">
+                    <Logo variant="login" />
                 </div>
 
                 {/* Card */}

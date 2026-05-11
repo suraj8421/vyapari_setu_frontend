@@ -8,7 +8,7 @@ import {
 import SAUserProfileModal from '../../components/superadmin/SAUserProfileModal';
 import SAAddUserModal from '../../components/superadmin/SAAddUserModal';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { API_BASE_URL } from '../../services/api';
 
 export default function SAUsersPage() {
     const [users, setUsers] = useState([]);
@@ -40,7 +40,7 @@ export default function SAUsersPage() {
 
     const fetchAnalytics = async () => {
         try {
-            const res = await fetch(`${API_URL}/sa-users/analytics`);
+            const res = await fetch(`${API_BASE_URL}/sa-users/analytics`);
             const data = await res.json();
             if (data.success) setAnalytics(data.data);
         } catch (e) { console.error('Error fetching CRM analytics', e); }
@@ -48,7 +48,7 @@ export default function SAUsersPage() {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch(`${API_URL}/employees`);
+            const res = await fetch(`${API_BASE_URL}/employees`);
             const data = await res.json();
             if (data.success) setEmployees(data.data);
         } catch (e) { console.error('Error fetching employees'); }
@@ -62,7 +62,7 @@ export default function SAUsersPage() {
             if (statusFilter !== 'All Status') params.append('status', statusFilter);
             if (employeeFilter) params.append('employeeId', employeeFilter);
 
-            const res = await fetch(`${API_URL}/sa-users?${params.toString()}`);
+            const res = await fetch(`${API_BASE_URL}/sa-users?${params.toString()}`);
             const data = await res.json();
             if (data.success) {
                 setUsers(data.data);
@@ -94,7 +94,7 @@ export default function SAUsersPage() {
         if (search) params.append('search', search);
         if (statusFilter !== 'All Status') params.append('status', statusFilter);
         if (employeeFilter) params.append('employeeId', employeeFilter);
-        window.open(`${API_URL}/sa-users/export?${params.toString()}`, '_blank');
+        window.open(`${API_BASE_URL}/sa-users/export?${params.toString()}`, '_blank');
     };
 
     return (

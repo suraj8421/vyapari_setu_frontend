@@ -102,9 +102,10 @@ export function AuthProvider({ children }) {
             localStorage.setItem('user', JSON.stringify(data));
             setUser(data);
         } catch (_) {
-            // Token might be invalid
+            // Token is invalid — force logout to sync state
+            logout();
         }
-    }, []);
+    }, [logout]);
 
     // Check token validity on mount
     useEffect(() => {
