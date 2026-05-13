@@ -153,9 +153,9 @@ export default function SAOnboardingPage() {
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-xs font-black text-surface-900 border border-gray-200 bg-white rounded-md px-1.5 py-0.5 inline-block w-max">TOTAL: ₹{item.totalAmount || 0}</span>
+                                                <span className="text-xs font-black text-surface-900 border border-gray-200 bg-white rounded-md px-1.5 py-0.5 inline-block w-max">TOTAL: ₹{(item.totalAmount / 100) || 0}</span>
                                                 <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded w-max border ${item.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-                                                    DUE: ₹{item.dueAmount || 0}
+                                                    DUE: ₹{(item.dueAmount / 100) || 0}
                                                 </span>
                                             </div>
                                         </td>

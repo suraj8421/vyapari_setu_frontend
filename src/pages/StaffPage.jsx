@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { 
     HiOutlineUserPlus, HiOutlineMagnifyingGlass, HiOutlinePencilSquare, 
     HiOutlineTrash, HiOutlineEnvelope, HiOutlinePhone, 
-    HiOutlineShieldCheck, HiOutlineUserCircle
+    HiOutlineShieldCheck, HiOutlineUserCircle, HiOutlineUserGroup
 } from 'react-icons/hi2';
 import { userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';

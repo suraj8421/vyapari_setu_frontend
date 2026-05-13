@@ -276,6 +276,35 @@ export default function InvoiceViewModal({ sale, onClose }) {
                             <p className="text-sm text-amber-800">{sale.notes}</p>
                         </div>
                     )}
+
+                    {/* Bank Details */}
+                    {sale.store?.bankName && (
+                        <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100">
+                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3">Settlement Details</p>
+                            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                                <div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Bank Name</p>
+                                    <p className="font-bold text-gray-900">{sale.store.bankName}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">A/c Holder</p>
+                                    <p className="font-bold text-gray-900">{sale.store.accountHolderName}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">A/c Number</p>
+                                    <p className="font-bold text-gray-900 tracking-widest">
+                                        {sale.store.accountNumber ? `•••• ${sale.store.accountNumber.slice(-4)}` : 'N/A'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">IFSC / UPI</p>
+                                    <p className="font-bold text-gray-900">
+                                        {sale.store.ifscCode || 'N/A'} {sale.store.upiId && <span className="text-gray-300 mx-1">|</span>} {sale.store.upiId}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer Actions */}

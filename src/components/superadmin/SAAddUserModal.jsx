@@ -14,6 +14,7 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
         planId: '',
         paymentMethod: 'CASH',
         amountReceived: '',
+        role: 'ADMIN',
         storeDetails: { name: '', address: '', city: '', state: '', pincode: '' }
     });
 
@@ -85,7 +86,7 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
                             <label className="block text-xs font-black text-gray-500 uppercase mb-1.5">Select Plan *</label>
                             <select required name="planId" value={formData.planId} onChange={handleChange} className="w-full form-input">
                                 <option value="">-- Choose Plan --</option>
-                                {plans.map(p => <option key={p._id} value={p._id}>{p.name} (₹{p.price})</option>)}
+                                {plans.map(p => <option key={p.id} value={p.id}>{p.name} (₹{p.price / 100})</option>)}
                             </select>
                         </div>
                     </div>
@@ -120,7 +121,7 @@ export default function SAAddUserModal({ onClose, employees = [] }) {
                                 <input 
                                     name="amountReceived" 
                                     type="number" 
-                                    placeholder={formData.planId ? plans.find(p => p._id === formData.planId)?.price : '0'}
+                                    placeholder={formData.planId ? plans.find(p => p.id === formData.planId)?.price / 100 : '0'}
                                     value={formData.amountReceived} 
                                     onChange={handleChange} 
                                     className="w-full form-input" 
