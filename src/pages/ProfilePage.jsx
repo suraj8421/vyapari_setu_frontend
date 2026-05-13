@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { authAPI } from '../services/api';
+import { authAPI, storeAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 import {
     HiOutlineUser,
@@ -18,14 +18,19 @@ import {
     HiOutlineArrowPath,
     HiOutlineEye,
     HiOutlineEyeSlash,
+    HiOutlinePencil,
+    HiOutlineCheck,
+    HiOutlineBanknotes,
+    HiOutlineIdentification,
 } from 'react-icons/hi2';
 
 export default function ProfilePage() {
     const { t } = useTranslation();
-    const { user, isAdmin } = useAuth();
+    const { isAdmin } = useAuth();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
+    const [updatingStore, setUpdatingStore] = useState(false);
 
     // Visibility States
     const [showCurrent, setShowCurrent] = useState(false);
@@ -39,6 +44,25 @@ export default function ProfilePage() {
         confirmPassword: ''
     });
 
+    // Store Edit State
+    const [isEditingStore, setIsEditingStore] = useState(false);
+    const [storeData, setStoreData] = useState({
+        name: '',
+        gstNumber: '',
+        address: '',
+        city: '',
+        state: '',
+        pincode: '',
+        phone: '',
+        email: '',
+        bankName: '',
+        accountHolderName: '',
+        accountNumber: '',
+        ifscCode: '',
+        branchName: '',
+        upiId: ''
+    });
+
     useEffect(() => {
         fetchProfile();
     }, []);
@@ -46,7 +70,26 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
         try {
             const res = await authAPI.getProfile();
-            setProfile(res.data.data);
+            const data = res.data.data;
+            setProfile(data);
+            if (data.store) {
+                setStoreData({
+                    name: data.store.name || '',
+                    gstNumber: data.store.gstNumber || '',
+                    address: data.store.address || '',
+                    city: data.store.city || '',
+                    state: data.store.state || '',
+                    pincode: data.store.pincode || '',
+                    phone: data.store.phone || '',
+                    email: data.store.email || '',
+                    bankName: data.store.bankName || '',
+                    accountHolderName: data.store.accountHolderName || '',
+                    accountNumber: data.store.accountNumber || '',
+                    ifscCode: data.store.ifscCode || '',
+                    branchName: data.store.branchName || '',
+                    upiId: data.store.upiId || ''
+                });
+            }
         } catch (err) {
             toast.error('Failed to load profile');
         } finally {
@@ -72,6 +115,23 @@ export default function ProfilePage() {
             toast.error(err.response?.data?.message || 'Failed to change password');
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleStoreUpdate = async (e) => {
+        if (e) e.preventDefault();
+        if (!profile?.storeId) return;
+
+        setUpdatingStore(true);
+        try {
+            await storeAPI.update(profile.storeId, storeData);
+            toast.success('Business details updated successfully');
+            setIsEditingStore(false);
+            fetchProfile();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to update business details');
+        } finally {
+            setUpdatingStore(false);
         }
     };
 
@@ -142,44 +202,44 @@ export default function ProfilePage() {
                                 </span>
                             </div>
                             <div className="space-y-4">
-                            <div className="space-y-1">
-                                <p className="text-[10px] md:text-xs font-black uppercase text-surface-400 tracking-[0.2em]">Current Plan</p>
-                                <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight italic">
-                                    {profile?.subscription?.planName || profile?.activePlan || 'FREE'}
-                                </h3>
-                                <p className="text-[10px] md:text-xs text-white/50 font-bold uppercase tracking-wider">
-                                    {profile?.subscription 
-                                        ? `Billed every ${profile.subscription.durationMonths} Months` 
-                                        : 'Standard Access'}
-                                </p>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <div className="p-2 bg-white/5 rounded-xl border border-white/10">
-                                    <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest leading-none mb-1">Price</p>
-                                    <p className="text-lg font-black text-white leading-none">
-                                        ₹{profile?.subscription?.price || '0'}
+                                <div className="space-y-1">
+                                    <p className="text-[10px] md:text-xs font-black uppercase text-surface-400 tracking-[0.2em]">Current Plan</p>
+                                    <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight italic">
+                                        {profile?.subscription?.planName || profile?.activePlan || 'FREE'}
+                                    </h3>
+                                    <p className="text-[10px] md:text-xs text-white/50 font-bold uppercase tracking-wider">
+                                        {profile?.subscription 
+                                            ? `Billed every ${profile.subscription.durationMonths} Months` 
+                                            : 'Standard Access'}
                                     </p>
                                 </div>
-                                <div className="h-8 w-px bg-white/10" />
-                                <div className="space-y-0.5">
-                                    <p className="text-[10px] font-black text-surface-400 uppercase tracking-widest leading-none">Expires on</p>
-                                    <p className="text-xs md:text-sm font-bold text-white/80">
-                                        {profile?.subscription?.expiryDate 
-                                            ? new Date(profile.subscription.expiryDate).toLocaleDateString('en-IN', {
-                                                day: '2-digit',
-                                                month: 'short',
-                                                year: 'numeric'
-                                            })
-                                            : 'No Expiry'}
-                                    </p>
-                                </div>
-                            </div>
 
-                            <button className="btn-primary w-full py-3 md:py-4 mt-2 bg-white hover:bg-surface-50 text-surface-950 border-none shadow-xl shadow-white/5 font-black uppercase tracking-widest text-xs md:text-sm">
-                                Upgrade Plan
-                            </button>
-                        </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2 bg-white/5 rounded-xl border border-white/10">
+                                        <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest leading-none mb-1">Price</p>
+                                        <p className="text-lg font-black text-white leading-none">
+                                            ₹{(profile?.subscription?.price / 100) || '0'}
+                                        </p>
+                                    </div>
+                                    <div className="h-8 w-px bg-white/10" />
+                                    <div className="space-y-0.5">
+                                        <p className="text-[10px] font-black text-surface-400 uppercase tracking-widest leading-none">Expires on</p>
+                                        <p className="text-xs md:text-sm font-bold text-white/80">
+                                            {profile?.subscription?.expiryDate 
+                                                ? new Date(profile.subscription.expiryDate).toLocaleDateString('en-IN', {
+                                                    day: '2-digit',
+                                                    month: 'short',
+                                                    year: 'numeric'
+                                                })
+                                                : 'No Expiry'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button className="btn-primary w-full py-3 md:py-4 mt-2 bg-white hover:bg-surface-50 text-surface-950 border-none shadow-xl shadow-white/5 font-black uppercase tracking-widest text-xs md:text-sm">
+                                    Upgrade Plan
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -187,38 +247,243 @@ export default function ProfilePage() {
                 {/* Right Column: Business Info & Security */}
                 <div className="lg:col-span-2 space-y-4 md:space-y-6">
                     {/* Business Details Card */}
-                    <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
-                        <div className="flex items-center gap-3 mb-6 md:mb-8">
-                            <div className="p-2 bg-primary-50 rounded-xl">
-                                <HiOutlineBuildingStorefront className="w-5 h-5 md:w-6 md:h-6 text-primary-500" />
+                    <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 relative group">
+                        <div className="flex items-center justify-between mb-6 md:mb-8">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary-50 rounded-xl">
+                                    <HiOutlineBuildingStorefront className="w-5 h-5 md:w-6 md:h-6 text-primary-500" />
+                                </div>
+                                <h3 className="text-base md:text-lg font-bold text-surface-900">Business & Banking</h3>
                             </div>
-                            <h3 className="text-base md:text-lg font-bold text-surface-900">Business Identity</h3>
+                            
+                            {isAdmin && (
+                                <div className="flex items-center gap-2">
+                                    {isEditingStore && (
+                                        <button 
+                                            type="button"
+                                            onClick={() => {
+                                                setIsEditingStore(false);
+                                                fetchProfile(); // Reset data
+                                            }}
+                                            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-gray-100 text-surface-600 hover:bg-gray-200 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                    )}
+                                    <button 
+                                        type={isEditingStore ? "submit" : "button"}
+                                        onClick={() => !isEditingStore && setIsEditingStore(true)}
+                                        disabled={updatingStore}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+                                            ${isEditingStore 
+                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' 
+                                                : 'bg-gray-50 text-surface-600 hover:bg-primary-50 hover:text-primary-600'}`}
+                                    >
+                                        {updatingStore ? (
+                                            <HiOutlineArrowPath className="w-4 h-4 animate-spin" />
+                                        ) : isEditingStore ? (
+                                            <HiOutlineCheck className="w-4 h-4" />
+                                        ) : (
+                                            <HiOutlinePencil className="w-4 h-4" />
+                                        )}
+                                        {isEditingStore ? 'Save Changes' : 'Edit Details'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-                            <div className="space-y-1">
-                                <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Store Name</label>
-                                <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900 border border-transparent">
-                                    {profile?.store?.name || 'Vyapari Store'}
+                        <form onSubmit={handleStoreUpdate} className="space-y-8">
+                            {/* Section 1: Identity */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Store Name</label>
+                                    {isEditingStore ? (
+                                        <input
+                                            type="text"
+                                            value={storeData.name}
+                                            onChange={(e) => setStoreData({...storeData, name: e.target.value})}
+                                            className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                        />
+                                    ) : (
+                                        <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900 border border-transparent">
+                                            {profile?.store?.name || 'Vyapari Store'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">GST Number</label>
+                                    {isEditingStore ? (
+                                        <input
+                                            type="text"
+                                            value={storeData.gstNumber}
+                                            onChange={(e) => setStoreData({...storeData, gstNumber: e.target.value})}
+                                            className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                            placeholder="27XXXXX0000X1Z5"
+                                        />
+                                    ) : (
+                                        <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900">
+                                            {profile?.store?.gstNumber || 'Not provided'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Business Phone</label>
+                                    {isEditingStore ? (
+                                        <input
+                                            type="text"
+                                            value={storeData.phone}
+                                            onChange={(e) => setStoreData({...storeData, phone: e.target.value})}
+                                            className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                        />
+                                    ) : (
+                                        <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900">
+                                            {profile?.store?.phone || 'Not provided'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Business Email</label>
+                                    {isEditingStore ? (
+                                        <input
+                                            type="email"
+                                            value={storeData.email}
+                                            onChange={(e) => setStoreData({...storeData, email: e.target.value})}
+                                            className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                        />
+                                    ) : (
+                                        <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900">
+                                            {profile?.store?.email || 'Not provided'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="md:col-span-2 space-y-1">
+                                    <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Store Address</label>
+                                    {isEditingStore ? (
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <input
+                                                type="text"
+                                                placeholder="Address"
+                                                className="col-span-2 p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                                value={storeData.address}
+                                                onChange={(e) => setStoreData({...storeData, address: e.target.value})}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="City"
+                                                className="p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                                value={storeData.city}
+                                                onChange={(e) => setStoreData({...storeData, city: e.target.value})}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="State"
+                                                className="p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                                value={storeData.state}
+                                                onChange={(e) => setStoreData({...storeData, state: e.target.value})}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Pincode"
+                                                className="p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                                value={storeData.pincode}
+                                                onChange={(e) => setStoreData({...storeData, pincode: e.target.value})}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-2 p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900">
+                                            <HiOutlineMapPin className="w-4 h-4 md:w-5 md:h-5 text-gray-400 shrink-0" />
+                                            <span>
+                                                {[profile?.store?.address, profile?.store?.city, profile?.store?.state, profile?.store?.pincode]
+                                                    .filter(Boolean).join(', ') || 'Address not listed'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">GST Number</label>
-                                <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900">
-                                    {profile?.store?.gstNumber || 'Not provided'}
+
+                            {/* Section 2: Banking */}
+                            <div className="pt-6 border-t border-gray-50">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <HiOutlineBanknotes className="w-4 h-4 text-primary-500" />
+                                    <h4 className="text-xs font-black uppercase tracking-widest text-surface-900">Settlement Accounts</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Bank Name</label>
+                                        {isEditingStore ? (
+                                            <input
+                                                type="text"
+                                                value={storeData.bankName}
+                                                onChange={(e) => setStoreData({...storeData, bankName: e.target.value})}
+                                                className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                            />
+                                        ) : (
+                                            <div className="p-3 bg-gray-50 rounded-xl font-bold text-sm text-surface-900">
+                                                {profile?.store?.bankName || 'Not added'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Account Holder</label>
+                                        {isEditingStore ? (
+                                            <input
+                                                type="text"
+                                                value={storeData.accountHolderName}
+                                                onChange={(e) => setStoreData({...storeData, accountHolderName: e.target.value})}
+                                                className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                            />
+                                        ) : (
+                                            <div className="p-3 bg-gray-50 rounded-xl font-bold text-sm text-surface-900">
+                                                {profile?.store?.accountHolderName || 'Not added'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Account Number</label>
+                                        {isEditingStore ? (
+                                            <input
+                                                type="text"
+                                                value={storeData.accountNumber}
+                                                onChange={(e) => setStoreData({...storeData, accountNumber: e.target.value})}
+                                                className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                            />
+                                        ) : (
+                                            <div className="p-3 bg-gray-50 rounded-xl font-bold text-sm text-surface-900 tracking-widest">
+                                                {profile?.store?.accountNumber ? `•••• ${profile.store.accountNumber.slice(-4)}` : 'Not added'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">IFSC / UPI</label>
+                                        {isEditingStore ? (
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="IFSC"
+                                                    className="flex-1 p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                                    value={storeData.ifscCode}
+                                                    onChange={(e) => setStoreData({...storeData, ifscCode: e.target.value})}
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder="UPI ID"
+                                                    className="flex-1 p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary-200 outline-none font-bold text-sm"
+                                                    value={storeData.upiId}
+                                                    onChange={(e) => setStoreData({...storeData, upiId: e.target.value})}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl font-bold text-sm text-surface-900">
+                                                <HiOutlineIdentification className="w-4 h-4 text-gray-400" />
+                                                <span>{profile?.store?.ifscCode || 'No IFSC'}</span>
+                                                <span className="text-gray-300">|</span>
+                                                <span>{profile?.store?.upiId || 'No UPI'}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="md:col-span-2 space-y-1">
-                                <label className="text-[9px] md:text-[10px] font-black uppercase text-surface-400 tracking-widest pl-1">Store Address</label>
-                                <div className="flex gap-2 p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl text-[13px] md:text-sm font-bold text-surface-900">
-                                    <HiOutlineMapPin className="w-4 h-4 md:w-5 md:h-5 text-gray-400 shrink-0" />
-                                    <span>
-                                        {[profile?.store?.address, profile?.store?.city, profile?.store?.state, profile?.store?.pincode]
-                                            .filter(Boolean).join(', ') || 'Address not listed'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        </form>
                     </div>
 
                     {/* Change Password Card */}

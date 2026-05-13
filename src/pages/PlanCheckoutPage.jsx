@@ -49,7 +49,7 @@ export default function PlanCheckoutPage() {
         // In a real scenario, you'd call an API to create a Razorpay Order first
         const options = {
             key: "rzp_test_mock", 
-            amount: plan.price * 100, 
+            amount: plan.price, // plan.price is in paisa
             currency: "INR",
             name: "VyapariSetu",
             description: `Subscription: ${plan.name}`,
@@ -125,8 +125,8 @@ export default function PlanCheckoutPage() {
                         
                         <div className="p-6 bg-white/5 rounded-3xl border border-white/10 mb-8">
                             <div className="flex items-baseline gap-1 mb-1">
-                                <span className="text-3xl font-black">₹{plan.price}</span>
-                                <span className="opacity-50 text-sm">/ {plan.durationDays} days</span>
+                                <span className="text-3xl font-black">₹{plan.price / 100}</span>
+                                <span className="opacity-50 text-sm">/ {plan.durationMonths || (plan.durationDays / 30)} months</span>
                             </div>
                             <p className="text-xs text-white/40 font-semibold">Billed once. Platform access enabled.</p>
                         </div>
@@ -168,12 +168,12 @@ export default function PlanCheckoutPage() {
                             </div>
                             <div className="flex justify-between items-center text-slate-900 mb-2">
                                 <span className="font-semibold text-sm">{plan.name} License</span>
-                                <span className="font-black">₹{plan.price}</span>
+                                <span className="font-black">₹{plan.price / 100}</span>
                             </div>
                             <div className="h-px bg-slate-100 my-4" />
                             <div className="flex justify-between items-center text-slate-900">
                                 <span className="font-bold uppercase tracking-widest text-xs">Total</span>
-                                <span className="text-2xl font-black">₹{plan.price}</span>
+                                <span className="text-2xl font-black">₹{plan.price / 100}</span>
                             </div>
                         </div>
 

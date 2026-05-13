@@ -145,18 +145,38 @@ export const generateInvoicePDF = (data, type = 'SALE', productsMetadata = []) =
         doc.text(Number(balance).toFixed(2), 200 - margin, totalY + 17, { align: 'right' });
     }
     
-    // -- Footer --
-    const footerY = 275;
+    // -- Bank Details & Signatory --
+    const footerY = 265;
+    
+    // Bank Details (Bottom Left)
+    if (data.store?.bankName) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text('Bank Details:', margin, footerY - 20);
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.text(`Bank Name: ${data.store.bankName}`, margin, footerY - 15);
+        doc.text(`A/c Holder: ${data.store.accountHolderName || 'N/A'}`, margin, footerY - 11);
+        doc.text(`A/c Number: ${data.store.accountNumber || 'N/A'}`, margin, footerY - 7);
+        doc.text(`IFSC Code: ${data.store.ifscCode || 'N/A'}`, margin, footerY - 3);
+        if (data.store.upiId) {
+            doc.text(`UPI ID: ${data.store.upiId}`, margin, footerY + 1);
+        }
+    }
+
     doc.setFontSize(8);
     doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text('Terms & Conditions:', margin, footerY - 10);
-    doc.text('1. Goods once sold will not be taken back.', margin, footerY - 5);
-    doc.text('2. Subject to local jurisdiction.', margin, footerY);
+    doc.text('Terms & Conditions:', margin, 285 - 10);
+    doc.text('1. Goods once sold will not be taken back.', margin, 285 - 5);
+    doc.text('2. Subject to local jurisdiction.', margin, 285);
     
     doc.setFont('helvetica', 'bold');
-    doc.text('For ' + (data.store?.name || 'VyapariSetu'), 200 - margin, footerY - 10, { align: 'right' });
+    doc.text('For ' + (data.store?.name || 'VyapariSetu'), 200 - margin, 285 - 10, { align: 'right' });
     doc.setFont('helvetica', 'normal');
-    doc.text('Authorized Signatory', 200 - margin, footerY, { align: 'right' });
+    doc.text('Authorized Signatory', 200 - margin, 285, { align: 'right' });
     
     // -- Save --
     const filename = `${isSale ? 'Invoice' : 'Purchase'}_${data.invoiceNumber || 'Draft'}.pdf`;
