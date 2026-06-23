@@ -23,22 +23,97 @@ api.interceptors.request.use((config) => {
 }, (error) => Promise.reject(error));
 
 // Global response interceptor – handles global errors like 401 Unauthorized
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // If we get a 401, it means our token is either missing, expired, or invalid.
-    // We should clear the local auth state and redirect to login.
-    if (error.response && error.response.status === 401) {
-      console.warn('[api] Unauthorized (401) detected. Clearing local auth and redirecting...');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Check if error is 401 and we haven't retried this request yet
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
       
-      // We only reload if we aren't already on the login page to avoid infinite loops
-      if (!window.location.pathname.includes('/login')) {
+      // If we are already on the login page, don't try to refresh
+      if (window.location.pathname.includes('/login')) {
+        return Promise.reject(error);
+      }
+
+      // If the request itself was for refreshing the token, redirect to login
+      if (originalRequest.url && originalRequest.url.includes('/auth/refresh')) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
         window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        // No refresh token available, logout
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      try {
+        // Call refresh endpoint directly using a new axios call to avoid interceptor loop
+        const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const { accessToken, refreshToken: newRefreshToken } = res.data.data;
+
+        localStorage.setItem('accessToken', accessToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
+
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+
+        processQueue(null, accessToken);
+        isRefreshing = false;
+        
+        return api(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        isRefreshing = false;
+
+        // Clear auth and logout
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        
+        return Promise.reject(err);
       }
     }
+    
     return Promise.reject(error);
   }
 );
@@ -53,6 +128,7 @@ export const authAPI = {
   getProfile: () => api.get('/auth/profile'),
   changePassword: (payload) => api.post('/auth/change-password', payload),
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
+  refreshToken: (payload) => api.post('/auth/refresh', payload),
 };
 
 // ---------------------------------------------------------------------
@@ -178,11 +254,11 @@ export const saleAPI = {
 // Sales‑Leads API
 // ---------------------------------------------------------------------
 export const saLeadsAPI = {
-  getAll: (params) => api.get('/sales-leads', { params }),
-  create: (payload) => api.post('/sales-leads', payload),
-  update: (id, payload) => api.put(`/sales-leads/${id}`, payload),
-  delete: (id) => api.delete(`/sales-leads/${id}`),
-  export: () => api.get('/sales-leads/export', { responseType: 'blob' }),
+  getAll: (params) => api.get('/sa-leads', { params }),
+  create: (payload) => api.post('/sa-leads', payload),
+  update: (id, payload) => api.put(`/sa-leads/${id}`, payload),
+  delete: (id) => api.delete(`/sa-leads/${id}`),
+  export: () => api.get('/sa-leads/export', { responseType: 'blob' }),
 };
 
 // ---------------------------------------------------------------------
@@ -197,10 +273,10 @@ export const saDashboardAPI = {
 // Super Admin Reports API
 // ---------------------------------------------------------------------
 export const saReportsAPI = {
-  exportClients: () => api.get('/sa-reports/export/clients', { responseType: 'blob' }),
-  exportEmployees: () => api.get('/sa-reports/export/employees', { responseType: 'blob' }),
-  exportPayments: () => api.get('/sa-reports/export/payments', { responseType: 'blob' }),
-  exportSubscriptions: () => api.get('/sa-reports/export/subscriptions', { responseType: 'blob' }),
+  exportClients: () => api.get('/sa-users/export', { responseType: 'blob' }),
+  exportEmployees: () => api.get('/employees/export', { responseType: 'blob' }),
+  exportPayments: () => api.get('/sa-users/payments/export', { responseType: 'blob' }),
+  exportSubscriptions: () => api.get('/sa-users/subscriptions/export', { responseType: 'blob' }),
 };
 
 // ---------------------------------------------------------------------
@@ -216,8 +292,8 @@ export const approvalAPI = {
   lock: (id) => api.post(`/approvals/${id}/lock`),
   unlock: (id) => api.post(`/approvals/${id}/unlock`),
   markRead: (id) => api.patch(`/approvals/${id}/read`),
-  markAllRead: () => api.patch('/approvals/read-all'),
-  bulkAction: (ids, action) => api.post('/approvals/bulk', { ids, action }),
+  markAllRead: () => api.post('/approvals/mark-all-read'),
+  bulkAction: (ids, action) => api.post('/approvals/bulk-action', { ids, action }),
   confirmInvoice: (id) => api.post(`/approvals/${id}/confirm-invoice`),
   acceptConnection: (id) => api.post(`/approvals/${id}/accept-connection`),
   rejectInvoice: (id, reason) => api.post(`/approvals/${id}/reject-invoice`, { reason }),
@@ -241,10 +317,6 @@ export const purchaseAPI = {
   getOne: (id) => api.get(`/purchases/${id}`),
   create: (payload) => api.post('/purchases', payload),
   updateStatus: (id, payload) => api.patch(`/purchases/${id}/status`, payload),
-  scan: (formData) => api.post('/purchases/scan', formData, { 
-    headers: { 'Content-Type': 'multipart/form-data' } 
-  }),
-  getScanStatus: (jobId) => api.get(`/purchases/scan-status/${jobId}`),
 };
 
 // ---------------------------------------------------------------------

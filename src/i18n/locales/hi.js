@@ -198,9 +198,20 @@ const hi = {
             location: 'शेल्फ स्थान',
             lowStock: 'कम स्टॉक',
             outOfStock: 'स्टॉक खत्म',
-            inStock: 'स्टॉक में',
             reorderSuggestion: '{{count}} और ऑर्डर करें',
             categories: 'श्रेणियाँ',
+            unitsPerBoxLabel: {
+                PCS: 'पीस प्रति बॉक्स',
+                KG: 'किलोग्राम प्रति बॉक्स',
+                LTR: 'लीटर प्रति बॉक्स',
+                PACK: 'पैक प्रति बॉक्स',
+                BOX: 'प्रति बॉक्स इकाइयां',
+                BAG: 'बैग प्रति बॉक्स',
+                SET: 'सेट प्रति बॉक्स',
+                DOZEN: 'दर्जन प्रति बॉक्स',
+                TONS: 'टन प्रति बॉक्स',
+                default: 'प्रति बॉक्स इकाइयां'
+            }
         },
 
         category_list: {
@@ -275,6 +286,7 @@ const hi = {
             title: 'खरीद',
             newPurchase: 'नई खरीद',
             supplier: 'आपूर्तिकर्ता',
+            selectSupplier: 'आपूर्तिकर्ता चुनें (वैकल्पिक)',
             billNumber: 'बिल नंबर',
             purchaseDate: 'खरीद की तारीख',
             addItems: 'आइटम जोड़ें',

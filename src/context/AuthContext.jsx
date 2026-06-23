@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
 
     const isAuthenticated = !!user;
     const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+    const isSuperAdmin = user?.role === 'SUPERADMIN';
 
     const login = useCallback(async (email, password) => {
         setLoading(true);
@@ -43,6 +44,7 @@ export function AuthProvider({ children }) {
             const { data } = await authAPI.login({ email, password });
             if (data.success) {
                 const { user: userData, accessToken, refreshToken } = data.data;
+                clearCache();
                 localStorage.setItem('accessToken', accessToken);
                 localStorage.setItem('refreshToken', refreshToken);
                 localStorage.setItem('user', JSON.stringify(userData));
@@ -123,12 +125,13 @@ export function AuthProvider({ children }) {
         error,
         isAuthenticated,
         isAdmin,
+        isSuperAdmin,
         login,
         register,
         logout,
         refreshProfile,
         setError,
-    }), [user, loading, error, isAuthenticated, isAdmin, login, register, logout, refreshProfile, setError]);
+    }), [user, loading, error, isAuthenticated, isAdmin, isSuperAdmin, login, register, logout, refreshProfile, setError]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
