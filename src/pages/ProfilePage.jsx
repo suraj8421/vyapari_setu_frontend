@@ -271,8 +271,14 @@ export default function ProfilePage() {
                                         </button>
                                     )}
                                     <button 
-                                        type={isEditingStore ? "submit" : "button"}
-                                        onClick={() => !isEditingStore && setIsEditingStore(true)}
+                                        type="button"
+                                        onClick={(e) => {
+                                            if (isEditingStore) {
+                                                handleStoreUpdate(e);
+                                            } else {
+                                                setIsEditingStore(true);
+                                            }
+                                        }}
                                         disabled={updatingStore}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all
                                             ${isEditingStore 

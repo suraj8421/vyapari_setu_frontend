@@ -20,7 +20,7 @@ import Translate from '../components/common/Translate';
 export default function ProductsPage() {
     const { t } = useTranslation();
 
-    const { isAdmin, user } = useAuth();
+    const { isAdmin, isSuperAdmin, user } = useAuth();
     const [products, setProducts] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -49,8 +49,8 @@ export default function ProductsPage() {
     // ─── Static/Reference Data (Cached) ─────────────────────
     useEffect(() => {
         fetchCategories();
-        if (isAdmin) fetchStores();
-    }, [isAdmin]);
+        if (isSuperAdmin) fetchStores();
+    }, [isSuperAdmin]);
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -83,19 +83,20 @@ export default function ProductsPage() {
 
     const openCreate = () => {
         setEditProduct(null);
-        setForm({ ...emptyForm, storeId: user?.storeId || stores[0]?.id || '' });
+        setForm({ ...emptyForm, storeId: user?.storeId || (isSuperAdmin ? stores[0]?.id : '') || '' });
         setModalOpen(true);
     };
 
     const openEdit = (product) => {
         setEditProduct(product);
+        const currentStock = product.inventory?.reduce((s, i) => s + i.quantity, 0) || 0;
         setForm({
             name: product.name, sku: product.sku, barcode: product.barcode || '',
             category: product.category || '', unit: product.unit, costPrice: Number(product.costPrice),
             sellingPrice: Number(product.sellingPrice), gstRate: Number(product.gstRate),
             hsnCode: product.hsnCode || '', storeId: product.storeId,
             unitsPerBox: product.unitsPerBox || 1, allowLooseSale: product.allowLooseSale ?? true,
-            initialStock: 0, minStockLevel: product.inventory?.[0]?.minStockLevel || 10,
+            initialStock: currentStock, minStockLevel: product.inventory?.[0]?.minStockLevel || 10,
         });
         setModalOpen(true);
     };
@@ -106,24 +107,30 @@ export default function ProductsPage() {
         try {
             const payload = {
                 ...form,
-                costPrice: Number(form.costPrice),
-                sellingPrice: Number(form.sellingPrice),
-                gstRate: Number(form.gstRate),
-                unitsPerBox: Number(form.unitsPerBox),
-                initialStock: Number(form.initialStock),
-                minStockLevel: Number(form.minStockLevel),
+                sku: (form.sku || '').trim() === '' ? null : form.sku,
+                costPrice: form.costPrice === '' || form.costPrice === null || form.costPrice === undefined ? null : Number(form.costPrice),
+                sellingPrice: form.sellingPrice === '' || form.sellingPrice === null || form.sellingPrice === undefined ? null : Number(form.sellingPrice),
+                gstRate: form.gstRate === '' || form.gstRate === null || form.gstRate === undefined ? 0 : Number(form.gstRate),
+                unitsPerBox: form.unitsPerBox === '' || form.unitsPerBox === null || form.unitsPerBox === undefined || Number(form.unitsPerBox) <= 0 ? null : Number(form.unitsPerBox),
+                initialStock: form.initialStock === '' || form.initialStock === null || form.initialStock === undefined ? 0 : Number(form.initialStock),
+                minStockLevel: form.minStockLevel === '' || form.minStockLevel === null || form.minStockLevel === undefined ? 10 : Number(form.minStockLevel),
             };
 
             if (editProduct) {
-                const { initialStock, ...updatePayload } = payload;
-                await productAPI.update(editProduct.id, updatePayload);
+                await productAPI.update(editProduct.id, payload);
             } else {
                 await productAPI.create(payload);
             }
             setModalOpen(false);
             fetchProducts();
         } catch (err) {
-            alert(err.response?.data?.message || 'Error saving product');
+            const validationErrors = err.response?.data?.errors;
+            if (validationErrors && validationErrors.length > 0) {
+                const msg = validationErrors.map(e => `${e.field}: ${e.message}`).join('\n');
+                alert(`Validation failed:\n${msg}`);
+            } else {
+                alert(err.response?.data?.message || 'Error saving product');
+            }
         } finally {
             setSaving(false);
         }
@@ -293,8 +300,8 @@ export default function ProductsPage() {
                             <input className="input-field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
                         </div>
                         <div>
-                            <label className="input-label">{t('products.sku')} *</label>
-                            <input className="input-field" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required />
+                            <label className="input-label">{t('products.sku')}</label>
+                            <input className="input-field" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
                         </div>
                         <div>
                             <label className="input-label">{t('products.barcode')}</label>
@@ -305,12 +312,12 @@ export default function ProductsPage() {
                             <input className="input-field" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
                         </div>
                         <div>
-                            <label className="input-label">{t('products.costPrice')} *</label>
-                            <input type="number" step="0.01" className="input-field" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} required />
+                            <label className="input-label">{t('products.costPrice')}</label>
+                            <input type="number" step="0.01" className="input-field" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} />
                         </div>
                         <div>
-                            <label className="input-label">{t('products.sellingPrice')} *</label>
-                            <input type="number" step="0.01" className="input-field" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })} required />
+                            <label className="input-label">{t('products.sellingPrice')}</label>
+                            <input type="number" step="0.01" className="input-field" value={form.sellingPrice} onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })} />
                         </div>
                         <div>
                             <label className="input-label">{t('products.gstRate')}</label>
@@ -337,22 +344,24 @@ export default function ProductsPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="input-label">Units Per Box</label>
-                            <input type="number" className="input-field" value={form.unitsPerBox} onChange={(e) => setForm({ ...form, unitsPerBox: Number(e.target.value) })} />
+                            <label className="input-label">
+                                {t(`products.unitsPerBoxLabel.${form.unit}`, t('products.unitsPerBoxLabel.default'))}
+                            </label>
+                            <input type="number" className="input-field" value={form.unitsPerBox} onChange={(e) => setForm({ ...form, unitsPerBox: e.target.value })} />
                         </div>
                         <div className="flex items-center gap-2 pt-6">
-                            <input 
-                                type="checkbox" 
+                            <input
+                                type="checkbox"
                                 id="allowLooseSale"
-                                checked={form.allowLooseSale} 
-                                onChange={(e) => setForm({ ...form, allowLooseSale: e.target.checked })} 
+                                checked={form.allowLooseSale}
+                                onChange={(e) => setForm({ ...form, allowLooseSale: e.target.checked })}
                                 className="w-4 h-4 text-primary-600 border-surface-300 rounded"
                             />
                             <label htmlFor="allowLooseSale" className="text-sm font-medium text-surface-700 cursor-pointer">
                                 Allow Loose Sale (PCS / Loose KG)
                             </label>
                         </div>
-                        {isAdmin && stores.length > 0 && (
+                        {isSuperAdmin && stores.length > 0 && (
                             <div>
                                 <label className="input-label">{t('nav.stores')} *</label>
                                 <select className="select-field" value={form.storeId} onChange={(e) => setForm({ ...form, storeId: e.target.value })} required>
@@ -361,18 +370,16 @@ export default function ProductsPage() {
                                 </select>
                             </div>
                         )}
-                        {!editProduct && (
-                            <>
-                                <div>
-                                    <label className="input-label">{t('products.stock')} (Initial)</label>
-                                    <input type="number" className="input-field" value={form.initialStock} onChange={(e) => setForm({ ...form, initialStock: e.target.value })} />
-                                </div>
-                                <div>
-                                    <label className="input-label">{t('products.minStock')}</label>
-                                    <input type="number" className="input-field" value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: e.target.value })} />
-                                </div>
-                            </>
-                        )}
+                        <div>
+                            <label className="input-label">
+                                {editProduct ? t('products.stock') : `${t('products.stock')} (Initial)`}
+                            </label>
+                            <input type="number" className="input-field" value={form.initialStock} onChange={(e) => setForm({ ...form, initialStock: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className="input-label">{t('products.minStock')}</label>
+                            <input type="number" className="input-field" value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: e.target.value })} />
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-surface-700/50">
                         <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">{t('common.cancel')}</button>

@@ -12,7 +12,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
-import { getOrFetch } from '../utils/dataCache';
+import { getOrFetch, invalidate } from '../utils/dataCache';
 import { useAuth } from '../context/AuthContext';
 
 // Default blank item added when user clicks "+ Add Item"
@@ -87,7 +87,16 @@ export function useUnifiedEntry() {
     const [history, setHistory] = useState([]);
 
     // ─── Form Data ───────────────────────────────────────────
-    const [formData, setFormData] = useState({ ...INITIAL_FORM });
+    const [formData, setFormData] = useState(() => ({
+        ...INITIAL_FORM,
+        storeId: user?.storeId || '',
+    }));
+
+    useEffect(() => {
+        if (user?.storeId && !formData.storeId) {
+            setFormData(prev => ({ ...prev, storeId: user.storeId }));
+        }
+    }, [user?.storeId]);
 
     // ─── Post-Success State ─────────────────────────────────
     const [completedInvoice, setCompletedInvoice] = useState(null);
@@ -110,7 +119,7 @@ export function useUnifiedEntry() {
             const [customers, suppliers, products] = await Promise.all([
                 getOrFetch('customers', () => api.get('/customers').then(r => r.data.data || [])),
                 getOrFetch('suppliers', () => api.get('/suppliers').then(r => r.data.data || [])),
-                getOrFetch('products',  () => api.get('/products').then(r => r.data.data || [])),
+                getOrFetch('products', () => api.get('/products').then(r => r.data.data || [])),
             ]);
 
             setCustomers(customers);
@@ -126,7 +135,7 @@ export function useUnifiedEntry() {
 
         // NEW: If User is Super Admin (no fixed store), they need the store list
         // to define the context for entries / creations.
-        if (user?.role === 'ADMIN' && !user?.storeId) {
+        if (user?.role === 'SUPERADMIN') {
             getOrFetch('stores', () => api.get('/stores').then(r => r.data.data || [])).then(storesList => {
                 setStores(storesList);
                 // AUTO-SELECT FIRST STORE for Admin consistency
@@ -137,7 +146,7 @@ export function useUnifiedEntry() {
                 console.warn('[useUnifiedEntry] fetchStores error:', err.message);
             });
         }
-    }, [user?.role, user?.storeId]);
+    }, [user?.role]);
 
     // Fetch audit history for the record being edited.
     // Only runs when `id` is present in the URL (edit mode).
@@ -209,15 +218,15 @@ export function useUnifiedEntry() {
             try {
                 setLoading(true);
                 const phone = window.prompt(`Enter Phone Number for ${item.name} (Optional):`);
-                
-                const res = await api.post(endpoint, { 
-                    name: item.name, 
+
+                const res = await api.post(endpoint, {
+                    name: item.name,
                     storeId: targetStoreId,
-                    phone: phone || '' 
+                    phone: phone || ''
                 });
-                
+
                 const newEntity = res.data.data;
-                
+
                 setFormData(prev => ({
                     ...prev,
                     partyId: newEntity.id || '',
@@ -298,10 +307,22 @@ export function useUnifiedEntry() {
                         updated.gstRate = Number(product.gstRate);
                         updated.unitsPerBox = product.unitsPerBox;
                         updated.barcode = product.barcode;
+
+                        // Prefill bags & weightPerBag
+                        if (product.unitsPerBox) {
+                            updated.weightPerBag = product.unitsPerBox;
+                            if (!updated.bags || Number(updated.bags) === 0) {
+                                updated.bags = 1;
+                            }
+                        } else {
+                            if (!updated.quantity || Number(updated.quantity) === 0) {
+                                updated.quantity = 1;
+                            }
+                        }
                     }
                 }
 
-                if (field === 'bags' || field === 'weightPerBag' || field === 'qtyMode' || field === 'qtyList' || field === 'qtyRaw') {
+                if (field === 'bags' || field === 'weightPerBag' || field === 'qtyMode' || field === 'qtyList' || field === 'qtyRaw' || field === 'FULL_PRODUCT_SELECTION' || field === 'productId') {
                     if (updated.qtyMode === 'equal') {
                         const b = Number(updated.bags || 0);
                         const w = Number(updated.weightPerBag || 0);
@@ -320,7 +341,7 @@ export function useUnifiedEntry() {
                             const list = updated.qtyList || [];
                             const sum = list.reduce((a, b) => a + Number(b || 0), 0);
                             updated.quantity = sum;
-                            
+
                             if (sum === 0 && updated.qtyRaw && field !== 'qtyList') {
                                 let parsedQty = 0;
                                 const qr = updated.qtyRaw;
@@ -344,6 +365,18 @@ export function useUnifiedEntry() {
                         updated.productName = product.name;
                         updated.unitsPerBox = product.unitsPerBox;
                         updated.barcode = product.barcode;
+
+                        // Prefill bags & weightPerBag
+                        if (product.unitsPerBox) {
+                            updated.weightPerBag = product.unitsPerBox;
+                            if (!updated.bags || Number(updated.bags) === 0) {
+                                updated.bags = 1;
+                            }
+                        } else {
+                            if (!updated.quantity || Number(updated.quantity) === 0) {
+                                updated.quantity = 1;
+                            }
+                        }
                     }
                 }
 
@@ -358,7 +391,7 @@ export function useUnifiedEntry() {
                 const price = Number(updated.unitPrice || 0);
                 const disc = Number(updated.discount || 0);
                 const gstRate = prev.invoiceType === 'GST' ? Number(updated.gstRate || 0) : 0;
-                
+
                 const lineNet = (quantity * price) - (quantity * disc);
                 const lineTax = (lineNet * gstRate) / 100;
                 updated.total = lineNet + lineTax;
@@ -373,7 +406,7 @@ export function useUnifiedEntry() {
     const calculateTotals = useCallback(() => {
         const items = formData.items;
         const isGST = formData.invoiceType === 'GST';
-        
+
         let subtotal = 0;
         let discount = 0;
         let tax = 0;
@@ -408,7 +441,7 @@ export function useUnifiedEntry() {
         const grandTotal = subtotal - totalDiscount + tax;
         const paidAmount = formData.payments.reduce((acc, p) => acc + Number(p.amount), 0);
         const totalQuantity = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
-        
+
         const stockWarnings = items.some(item => {
             if (!item.productId) return false;
             const product = (products || []).find(p => p.id === item.productId);
@@ -416,22 +449,22 @@ export function useUnifiedEntry() {
             return Number(item.quantity || 0) > available;
         });
 
-        const selectedParty = type === 'SALE' 
-            ? customers.find(c => c.id === formData.partyId) 
+        const selectedParty = type === 'SALE'
+            ? customers.find(c => c.id === formData.partyId)
             : suppliers.find(s => s.id === formData.partyId);
-            
-        const creditLimitExceeded = type === 'SALE' && 
-            selectedParty && 
-            Number(selectedParty.creditLimit) > 0 && 
+
+        const creditLimitExceeded = type === 'SALE' &&
+            selectedParty &&
+            Number(selectedParty.creditLimit) > 0 &&
             (Number(selectedParty.balance) + grandTotal) > Number(selectedParty.creditLimit);
 
-        return { 
-            subtotal, 
-            discount: totalDiscount, 
-            tax, 
-            cgst, 
-            sgst, 
-            igst, 
+        return {
+            subtotal,
+            discount: totalDiscount,
+            tax,
+            cgst,
+            sgst,
+            igst,
             total: grandTotal,
             paidAmount,
             totalQuantity,
@@ -451,7 +484,7 @@ export function useUnifiedEntry() {
     const removePayment = useCallback((index) => {
         setFormData(prev => ({
             ...prev,
-            payments: prev.payments.length > 1 
+            payments: prev.payments.length > 1
                 ? prev.payments.filter((_, i) => i !== index)
                 : prev.payments
         }));
@@ -474,30 +507,6 @@ export function useUnifiedEntry() {
     // ════════════════════════════════════════════════════════
 
     const submitTransaction = async (overrides = {}) => {
-        if (type === 'SALE') {
-            const hasCustomerName = !!formData.partyName;
-            const hasCustomerNumber = !!formData.mobile;
-            
-            if (!formData.partyId || !hasCustomerName || !hasCustomerNumber) {
-                toast.custom((t) => (
-                    <div className={`${t.visible ? 'animate-bounce' : 'opacity-0'} max-w-md w-full bg-white border-l-4 border-emerald-400 border-y border-r border-slate-100 shadow-2xl rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all duration-300`}>
-                        <div className="flex-1 w-0 p-4">
-                            <div className="flex items-start">
-                                <div className="flex-shrink-0 pt-0.5"><span className="text-2xl">📱</span></div>
-                                <div className="ml-3 flex-1">
-                                    <p className="text-sm font-black text-orange-600 tracking-wide uppercase">Details Needed</p>
-                                    <p className="mt-1 text-xs font-semibold text-orange-700/80 leading-relaxed">
-                                        To send an instant WhatsApp invoice, we need a contact number! Please select or add a <strong className="text-orange-600">Customer</strong> with a phone number.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ), { duration: 5000 });
-                return;
-            }
-        }
-
         setLoading(true);
 
         try {
@@ -505,15 +514,55 @@ export function useUnifiedEntry() {
             const finalOptions = overrides.options || formData.options;
             const finalPaidAmount = overrides.paidAmount !== undefined ? overrides.paidAmount : currentTotals.paidAmount;
 
-            // Filter out empty rows (e.g. user added a row but didn't select a product)
+            // Filter out empty rows (e.g. user added a row but didn't select or type a product)
             let finalItems = formData.items;
             if (type === 'SALE' || type === 'PURCHASE') {
-                finalItems = formData.items.filter(item => item.productId && item.productId.trim() !== '');
+                finalItems = formData.items.filter(item => 
+                    (item.productId && item.productId.trim() !== '') || 
+                    (item.productName && item.productName.trim() !== '')
+                );
                 if (finalItems.length === 0) {
                     toast.error("Please add at least one valid product before recording the transaction.");
                     setLoading(false);
                     return;
                 }
+
+                // Process typed products that do not have a productId
+                const processedItems = [];
+                for (const item of finalItems) {
+                    let productId = item.productId;
+                    if (!productId || productId.trim() === '') {
+                        // Check if it case-insensitively matches an existing product from reference list
+                        const existingProd = (products || []).find(p => p.name.toLowerCase() === item.productName.trim().toLowerCase());
+                        if (existingProd) {
+                            productId = existingProd.id;
+                        } else {
+                            // Create the product on the fly!
+                            const newProdRes = await api.post('/products', {
+                                name: item.productName.trim(),
+                                unit: item.unit || 'PCS',
+                                costPrice: type === 'PURCHASE' ? Number(item.unitPrice) || 0 : 0,
+                                sellingPrice: type === 'SALE' ? Number(item.unitPrice) || 0 : (Number(item.unitPrice) || 0),
+                                gstRate: Number(item.gstRate) || 0,
+                                storeId: formData.storeId || user?.storeId
+                            });
+                            const newProd = newProdRes.data.data;
+                            productId = newProd.id;
+                            
+                            // Proactively update reference data cache
+                            invalidate('products');
+                        }
+                    }
+                    processedItems.push({
+                        ...item,
+                        productId,
+                        unitPrice: Number(item.unitPrice) || 0,
+                        quantity: Number(item.quantity) || 0,
+                        discount: Number(item.discount) || 0,
+                        gstRate: Number(item.gstRate) || 0
+                    });
+                }
+                finalItems = processedItems;
             }
 
             const payload = {
@@ -524,8 +573,8 @@ export function useUnifiedEntry() {
                 options: finalOptions,
                 totalAmount: currentTotals.total,
                 paidAmount: finalPaidAmount,
-                customerId: (type === 'SALE' || type === 'PAYMENT') ? formData.partyId : null,
-                supplierId: type === 'PURCHASE' ? formData.partyId : null,
+                customerId: (type === 'SALE' || type === 'PAYMENT') ? (formData.partyId || null) : null,
+                supplierId: type === 'PURCHASE' ? (formData.partyId || null) : null,
             };
 
             const res = await api.post('/transactions', payload);
@@ -545,7 +594,7 @@ export function useUnifiedEntry() {
                     store: user?.store,
                     type: type
                 };
-                
+
                 toast.success(`✅ ${type} recorded successfully!`);
                 setCompletedInvoice(createdSale);
             } else {
@@ -568,24 +617,24 @@ export function useUnifiedEntry() {
 
     const handlePaymentSettlement = useCallback(() => {
         const currentTotals = calculateTotals();
-        
+
         // Prevent using settle if the amount typed does not EXACTLY match the grand total
         if (currentTotals.paidAmount < currentTotals.total) {
-                toast.custom((t) => (
-                    <div className={`${t.visible ? 'animate-bounce' : 'opacity-0'} max-w-md w-full bg-white border-l-4 border-emerald-400 border-y border-r border-slate-100 shadow-2xl rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all duration-300`}>
-                        <div className="flex-1 w-0 p-4">
-                            <div className="flex items-start">
-                                <div className="flex-shrink-0 pt-0.5"><span className="text-2xl">💡</span></div>
-                                <div className="ml-3 flex-1">
-                                    <p className="text-sm font-black text-orange-600 tracking-wide uppercase">Incomplete Settlement</p>
-                                    <p className="mt-1 text-xs font-semibold text-orange-700/80 leading-relaxed">
-                                        Please enter the exact full settlement amount, or use the standard <strong className="text-orange-600">Record Transaction</strong> button instead!
-                                    </p>
-                                </div>
+            toast.custom((t) => (
+                <div className={`${t.visible ? 'animate-bounce' : 'opacity-0'} max-w-md w-full bg-white border-l-4 border-emerald-400 border-y border-r border-slate-100 shadow-2xl rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all duration-300`}>
+                    <div className="flex-1 w-0 p-4">
+                        <div className="flex items-start">
+                            <div className="flex-shrink-0 pt-0.5"><span className="text-2xl">💡</span></div>
+                            <div className="ml-3 flex-1">
+                                <p className="text-sm font-black text-orange-600 tracking-wide uppercase">Incomplete Settlement</p>
+                                <p className="mt-1 text-xs font-semibold text-orange-700/80 leading-relaxed">
+                                    Please enter the exact full settlement amount, or use the standard <strong className="text-orange-600">Record Transaction</strong> button instead!
+                                </p>
                             </div>
                         </div>
                     </div>
-                ), { duration: 5000 });
+                </div>
+            ), { duration: 5000 });
             return;
         }
 
@@ -629,3 +678,4 @@ export function useUnifiedEntry() {
         setCompletedInvoice,
     };
 }
+
