@@ -523,8 +523,8 @@ export default function CustomersPage() {
                                         {t('customers.viewKhata')}
                                     </button>
                                 </div>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <button onClick={() => openPayment(cust)} className="btn-primary btn-sm flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
+                                    <button onClick={() => openPayment(cust)} className="btn-primary btn-sm flex-1 min-w-[120px]">
                                         <HiOutlineBanknotes className="w-4 h-4" />
                                         {t('customers.recordPayment')}
                                     </button>
@@ -533,7 +533,7 @@ export default function CustomersPage() {
                                             name: cust.name, phone: cust.phone || '', email: cust.email || '',
                                             address: cust.address || '', creditLimit: Number(cust.creditLimit), storeId: cust.storeId,
                                         }); setCustModalOpen(true);
-                                    }} className="btn-ghost btn-sm">
+                                    }} className="btn-ghost btn-sm" title="Edit Customer">
                                         <HiOutlinePencilSquare className="w-4 h-4" />
                                     </button>
                                     <button onClick={() => handleSendPaymentLink(cust)} className="btn-ghost btn-sm text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10" title="Send to WhatsApp">
@@ -558,7 +558,7 @@ export default function CustomersPage() {
                         <label className="input-label">{t('customers.customerName')} *</label>
                         <input className="input-field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label className="input-label">{t('common.phone')}</label>
                             <input className="input-field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -585,9 +585,9 @@ export default function CustomersPage() {
                             </select>
                         </div>
                     )}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-surface-700/50">
-                        <button type="button" onClick={() => setCustModalOpen(false)} className="btn-secondary">{t('common.cancel')}</button>
-                        <button type="submit" disabled={saving} className="btn-primary">{saving ? t('common.loading') : t('common.save')}</button>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-3 pt-4 border-t border-surface-700/50">
+                        <button type="button" onClick={() => setCustModalOpen(false)} className="btn-secondary w-full sm:w-auto">{t('common.cancel')}</button>
+                        <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">{saving ? t('common.loading') : t('common.save')}</button>
                     </div>
                 </form>
             </Modal>
@@ -607,10 +607,10 @@ export default function CustomersPage() {
                         <CreditScoreGauge score={scoreData?.score || 100} name={scoreData?.name} />
                     </div>
                     
-                    <div className="p-8 pt-0 bg-slate-950">
+                    <div className="p-4 sm:p-8 pt-0 bg-slate-950">
                         <button 
                             onClick={() => setScoreModalOpen(false)}
-                            className="w-full py-4 rounded-xl bg-slate-900/50 hover:bg-slate-800 text-slate-300 font-black border border-slate-700/50 backdrop-blur-md transition-all uppercase tracking-[0.3em] text-[10px] shadow-lg active:scale-[0.98]"
+                            className="w-full py-3.5 sm:py-4 rounded-xl bg-slate-900/50 hover:bg-slate-800 text-slate-300 font-black border border-slate-700/50 backdrop-blur-md transition-all uppercase tracking-[0.3em] text-[10px] shadow-lg active:scale-[0.98]"
                         >
                             Close Analysis Terminal
                         </button>
@@ -642,11 +642,11 @@ export default function CustomersPage() {
                         </select>
                     </div>
                     {payForm.paymentMethod === 'ONLINE' && (
-                        <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl flex items-center gap-3">
-                            <HiOutlineCreditCard className="w-6 h-6 text-blue-400" />
+                        <div className="bg-blue-500/5 border border-blue-500/20 p-3.5 sm:p-4 rounded-xl flex items-center gap-3">
+                            <HiOutlineCreditCard className="w-6 h-6 text-blue-400 shrink-0" />
                             <div className="flex-1">
                                 <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">Digital Processing</p>
-                                <p className="text-sm text-surface-600">A 2% gateway fee may apply based on your global settings.</p>
+                                <p className="text-xs sm:text-sm text-surface-600">A 2% gateway fee may apply based on your global settings.</p>
                             </div>
                         </div>
                     )}
@@ -660,9 +660,9 @@ export default function CustomersPage() {
                         <input className="input-field" value={payForm.description}
                             onChange={(e) => setPayForm({ ...payForm, description: e.target.value })} />
                     </div>
-                    <div className="flex justify-end gap-3 pt-4 border-t border-surface-700/50">
-                        <button type="button" onClick={() => setPayModalOpen(false)} className="btn-secondary">{t('common.cancel')}</button>
-                        <button type="submit" disabled={saving} className="btn-primary">{saving ? t('common.loading') : t('customers.recordPayment')}</button>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-3 pt-4 border-t border-surface-700/50">
+                        <button type="button" onClick={() => setPayModalOpen(false)} className="btn-secondary w-full sm:w-auto">{t('common.cancel')}</button>
+                        <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">{saving ? t('common.loading') : t('customers.recordPayment')}</button>
                     </div>
                 </form>
             </Modal>
@@ -681,10 +681,10 @@ export default function CustomersPage() {
                 size="lg"
             >
                 <div className="flex flex-col gap-4 mb-4">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 p-4 rounded-xl bg-surface-800/30 flex items-center justify-between">
-                            <span className="text-surface-700 font-medium">{t('customers.balance')}</span>
-                            <span className={`text-xl font-bold ${Number(selectedCustomer?.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                        <div className="flex-1 p-3.5 sm:p-4 rounded-xl bg-surface-800/30 flex items-center justify-between">
+                            <span className="text-surface-700 font-medium text-sm">{t('customers.balance')}</span>
+                            <span className={`text-lg sm:text-xl font-bold ${Number(selectedCustomer?.balance) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                                 {formatCurrency(selectedCustomer?.balance)}
                             </span>
                         </div>
@@ -692,14 +692,14 @@ export default function CustomersPage() {
                             <button
                                 onClick={handleDownloadKhataPDF}
                                 disabled={ledgerEntries.length === 0}
-                                className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-4 rounded-xl flex items-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                                className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-2.5 sm:py-3.5 rounded-xl flex items-center gap-2 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 text-xs sm:text-sm font-semibold"
                                 title="Download Statement PDF"
                             >
-                                <HiOutlineDocumentArrowDown className="w-5 h-5" />
+                                <HiOutlineDocumentArrowDown className="w-4 h-4 sm:w-5 sm:h-5" />
                                 PDF
                             </button>
                             <select
-                                className="select-field w-36 py-3"
+                                className="select-field flex-1 sm:w-36 py-2.5 sm:py-3 text-xs sm:text-sm"
                                 value={khataRange}
                                 onChange={(e) => setKhataRange(e.target.value)}
                             >
@@ -716,21 +716,21 @@ export default function CustomersPage() {
 
                     {/* Custom Date Picker */}
                     {khataRange === 'custom' && (
-                        <div className="flex items-center gap-3 p-3 bg-surface-800/20 rounded-xl animate-fade-in">
-                            <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-surface-800/20 rounded-xl animate-fade-in">
+                            <div className="w-full sm:flex-1">
                                 <label className="text-[10px] uppercase tracking-wider text-surface-500 font-bold ml-1 mb-1 block">Start Date</label>
                                 <input 
                                     type="date" 
-                                    className="input-field py-2 text-sm" 
+                                    className="input-field py-2 text-sm w-full" 
                                     value={khataStartDate}
                                     onChange={(e) => setKhataStartDate(e.target.value)}
                                 />
                             </div>
-                            <div className="flex-1">
+                            <div className="w-full sm:flex-1">
                                 <label className="text-[10px] uppercase tracking-wider text-surface-500 font-bold ml-1 mb-1 block">End Date</label>
                                 <input 
                                     type="date" 
-                                    className="input-field py-2 text-sm" 
+                                    className="input-field py-2 text-sm w-full" 
                                     value={khataEndDate}
                                     onChange={(e) => setKhataEndDate(e.target.value)}
                                 />

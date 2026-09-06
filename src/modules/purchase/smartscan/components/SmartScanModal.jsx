@@ -213,23 +213,23 @@ export default function SmartScanModal({ isOpen, onClose, onApply }) {
     // ─── Render ─────────────────────────────────────────────────────────────
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4"
             style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
             onClick={handleClose}
         >
             <div
-                className="relative w-full max-w-2xl rounded-2xl border border-surface-700/60 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                className="relative w-full max-w-[calc(100vw-1.25rem)] sm:max-w-2xl rounded-2xl border border-surface-700/60 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
                 style={{ background: 'linear-gradient(135deg, #1a1f2e 0%, #12161f 100%)' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* ── Header ───────────────────────────────────────────────── */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-surface-700/50 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <Logo variant="navbar" className="scale-90" />
-                        <div className="w-px h-8 bg-surface-700/50 mx-1" />
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-surface-700/50 shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <Logo variant="navbar" className="scale-75 sm:scale-90 origin-left" />
+                        <div className="w-px h-6 sm:h-8 bg-surface-700/50 mx-0.5 sm:mx-1" />
                         <div>
-                            <h2 className="text-base font-semibold text-surface-100">Smart Scan</h2>
-                            <p className="text-xs text-surface-500">AI-powered multi-page extraction</p>
+                            <h2 className="text-sm sm:text-base font-semibold text-surface-100">Smart Scan</h2>
+                            <p className="text-[10px] sm:text-xs text-surface-500">AI multi-page extraction</p>
                         </div>
                     </div>
                     <button
@@ -242,7 +242,7 @@ export default function SmartScanModal({ isOpen, onClose, onApply }) {
                 </div>
 
                 {/* ── Body ─────────────────────────────────────────────────── */}
-                <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+                <div className="p-3.5 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
 
                     {isCameraOpen ? (
                         <div className="relative rounded-xl overflow-hidden border border-surface-600 bg-black h-64 sm:h-80 flex flex-col items-center justify-center">
@@ -486,22 +486,22 @@ export default function SmartScanModal({ isOpen, onClose, onApply }) {
                 </div>
 
                 {/* ── Footer ───────────────────────────────────────────────── */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-surface-700/50 shrink-0">
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 px-4 sm:px-6 py-3.5 sm:py-4 border-t border-surface-700/50 shrink-0">
                     <button
                         type="button"
                         onClick={() => { reset(); setPages([]); }}
                         disabled={pages.length === 0}
-                        className="flex items-center gap-1.5 text-sm text-surface-400 hover:text-surface-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex items-center justify-center gap-1.5 text-xs sm:text-sm text-surface-400 hover:text-surface-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed py-2 sm:py-0"
                     >
                         <HiOutlineArrowPath className="w-4 h-4" />
                         Clear All
                     </button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
                         <button
                             type="button"
                             onClick={handleForceClose}
-                            className="px-4 py-2 rounded-lg text-sm text-surface-300 hover:text-surface-100 hover:bg-surface-700/50 transition-colors"
+                            className="px-4 py-2.5 rounded-lg text-xs sm:text-sm text-surface-300 hover:text-surface-100 hover:bg-surface-700/50 transition-colors text-center"
                         >
                             Cancel
                         </button>
@@ -510,7 +510,7 @@ export default function SmartScanModal({ isOpen, onClose, onApply }) {
                             <button
                                 type="button"
                                 onClick={handleApply}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/20"
+                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/20"
                             >
                                 <HiOutlineCheckCircle className="w-4 h-4" />
                                 Fill Form
@@ -520,7 +520,7 @@ export default function SmartScanModal({ isOpen, onClose, onApply }) {
                                 type="button"
                                 onClick={handleScanAll}
                                 disabled={pages.length === 0 || isBusy || isCameraOpen}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-500 to-blue-500 text-white hover:from-violet-400 hover:to-blue-400 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-gradient-to-r from-violet-500 to-blue-500 text-white hover:from-violet-400 hover:to-blue-400 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                             >
                                 {isBusy ? (
                                     <><Spinner className="w-4 h-4" /> Scanning...</>

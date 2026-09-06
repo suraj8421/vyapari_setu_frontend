@@ -90,28 +90,28 @@ export default function InvoiceViewModal({ sale, onClose }) {
     const netBalanceDue = Math.max(0, netTotal - Number(sale.paidAmount || 0));
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
                 initial={{ scale: 0.93, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.93, opacity: 0, y: 20 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-2xl max-h-[92vh] flex flex-col overflow-hidden"
             >
                 {/* Invoice Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 text-white flex items-start justify-between shrink-0">
-                    <div className="flex items-start gap-4">
-                        <div className="bg-white p-2 rounded-xl shadow-lg">
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-5 text-white flex items-start justify-between shrink-0">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                        <div className="bg-white p-1.5 sm:p-2 rounded-xl shadow-lg shrink-0">
                             <Logo variant="icon" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
-                                <HiOutlineDocumentText className="w-5 h-5" />
-                                <span className="text-xs font-bold uppercase tracking-widest opacity-80">Tax Invoice</span>
+                                <HiOutlineDocumentText className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80">Tax Invoice</span>
                             </div>
-                            <h2 className="text-xl font-black">{sale.invoiceNumber}</h2>
-                            <p className="text-xs opacity-75 mt-1">
-                                {new Date(sale.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                            <h2 className="text-lg sm:text-xl font-black">{sale.invoiceNumber}</h2>
+                            <p className="text-[10px] sm:text-xs opacity-75 mt-0.5 sm:mt-1">
+                                {new Date(sale.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                 {' · '}
                                 {new Date(sale.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                             </p>
@@ -119,12 +119,12 @@ export default function InvoiceViewModal({ sale, onClose }) {
                     </div>
                     <div className="flex items-center gap-2">
                         {sale.status === 'RETURNED' && (
-                            <span className="px-2 py-1 bg-red-500 text-white text-xs font-black rounded-lg uppercase tracking-wide">
+                            <span className="px-2 py-1 bg-red-500 text-white text-[10px] sm:text-xs font-black rounded-lg uppercase tracking-wide">
                                 Returned
                             </span>
                         )}
                         {sale.status === 'PARTIAL_RETURN' && (
-                            <span className="px-2 py-1 bg-orange-400 text-white text-xs font-black rounded-lg uppercase tracking-wide">
+                            <span className="px-2 py-1 bg-orange-400 text-white text-[10px] sm:text-xs font-black rounded-lg uppercase tracking-wide">
                                 Partial Return
                             </span>
                         )}
@@ -135,19 +135,19 @@ export default function InvoiceViewModal({ sale, onClose }) {
                 </div>
 
                 {/* Scrollable Body */}
-                <div className="overflow-y-auto flex-1 p-5 space-y-4">
+                <div className="overflow-y-auto flex-1 p-3.5 sm:p-5 space-y-4">
                     {/* Customer + Store Info */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Bill To</p>
-                            <p className="font-bold text-gray-900">{sale.partyName || sale.customer?.name || sale.supplier?.name || 'Walk-in Customer'}</p>
+                            <p className="font-bold text-gray-900 text-sm sm:text-base">{sale.partyName || sale.customer?.name || sale.supplier?.name || 'Walk-in Customer'}</p>
                             {sale.mobile && (
                                 <p className="text-xs text-gray-500">{sale.mobile || sale.customer?.phone}</p>
                             )}
                         </div>
                         <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Store</p>
-                            <p className="font-bold text-gray-900">{sale.store?.name || 'VyapariSetu'}</p>
+                            <p className="font-bold text-gray-900 text-sm sm:text-base">{sale.store?.name || 'VyapariSetu'}</p>
                             {sale.store?.phone && (
                                 <p className="text-xs text-gray-500">{sale.store.phone}</p>
                             )}
@@ -155,15 +155,15 @@ export default function InvoiceViewModal({ sale, onClose }) {
                     </div>
 
                     {/* Items Table */}
-                    <div className="border border-gray-100 rounded-xl overflow-hidden">
-                        <table className="w-full text-sm">
+                    <div className="border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+                        <table className="w-full text-xs sm:text-sm min-w-[340px]">
                             <thead>
                                 <tr className="bg-blue-600 text-white">
-                                    <th className="text-left p-3 text-xs font-bold">#</th>
-                                    <th className="text-left p-3 text-xs font-bold">Product</th>
-                                    <th className="text-center p-3 text-xs font-bold">Qty</th>
-                                    <th className="text-right p-3 text-xs font-bold">Rate</th>
-                                    <th className="text-right p-3 text-xs font-bold">Total</th>
+                                    <th className="text-left p-2.5 sm:p-3 text-[10px] sm:text-xs font-bold">#</th>
+                                    <th className="text-left p-2.5 sm:p-3 text-[10px] sm:text-xs font-bold">Product</th>
+                                    <th className="text-center p-2.5 sm:p-3 text-[10px] sm:text-xs font-bold">Qty</th>
+                                    <th className="text-right p-2.5 sm:p-3 text-[10px] sm:text-xs font-bold">Rate</th>
+                                    <th className="text-right p-2.5 sm:p-3 text-[10px] sm:text-xs font-bold">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -174,31 +174,31 @@ export default function InvoiceViewModal({ sale, onClose }) {
                                         : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                                     return (
                                         <tr key={item.id || idx} className={rowBg}>
-                                            <td className="p-3 text-gray-500 text-xs">{idx + 1}</td>
-                                            <td className="p-3">
-                                                <div className="flex items-center gap-2">
+                                            <td className="p-2.5 sm:p-3 text-gray-500 text-xs">{idx + 1}</td>
+                                            <td className="p-2.5 sm:p-3">
+                                                <div className="flex items-center gap-1.5 sm:gap-2">
                                                     <div>
                                                         <p className={`font-semibold ${isReturned ? 'line-through text-red-400' : 'text-gray-900'}`}>
                                                             {item.productName || item.product?.name || 'Product'}
                                                         </p>
                                                         {item.gstRate > 0 && (
-                                                            <p className="text-xs text-gray-400">GST: {item.gstRate}%</p>
+                                                            <p className="text-[10px] text-gray-400">GST: {item.gstRate}%</p>
                                                         )}
                                                     </div>
                                                     {isReturned && (
-                                                        <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-black rounded uppercase tracking-wide shrink-0">
+                                                        <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] font-black rounded uppercase tracking-wide shrink-0">
                                                             Returned
                                                         </span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className={`p-3 text-center ${isReturned ? 'text-red-400 line-through' : 'text-gray-700'}`}>
+                                            <td className={`p-2.5 sm:p-3 text-center ${isReturned ? 'text-red-400 line-through' : 'text-gray-700'}`}>
                                                 {item.quantity}
                                             </td>
-                                            <td className={`p-3 text-right ${isReturned ? 'text-red-400' : 'text-gray-700'}`}>
+                                            <td className={`p-2.5 sm:p-3 text-right ${isReturned ? 'text-red-400' : 'text-gray-700'}`}>
                                                 {formatCurr(item.unitPrice)}
                                             </td>
-                                            <td className={`p-3 text-right font-bold ${isReturned ? 'text-red-400 line-through' : 'text-gray-900'}`}>
+                                            <td className={`p-2.5 sm:p-3 text-right font-bold ${isReturned ? 'text-red-400 line-through' : 'text-gray-900'}`}>
                                                 {formatCurr(item.total)}
                                             </td>
                                         </tr>
@@ -210,53 +210,53 @@ export default function InvoiceViewModal({ sale, onClose }) {
 
                     {/* Totals */}
                     <div className="flex justify-end">
-                        <div className="w-72 space-y-2">
-                            <div className="flex justify-between text-sm text-gray-600">
+                        <div className="w-full sm:w-72 space-y-1.5 sm:space-y-2 p-3 bg-gray-50/50 rounded-xl border border-gray-100">
+                            <div className="flex justify-between text-xs sm:text-sm text-gray-600">
                                 <span>Subtotal</span>
                                 <span>{formatCurr(subtotal)}</span>
                             </div>
                             {tax > 0 && (
-                                <div className="flex justify-between text-sm text-gray-600">
+                                <div className="flex justify-between text-xs sm:text-sm text-gray-600">
                                     <span>Tax</span>
                                     <span>{formatCurr(tax)}</span>
                                 </div>
                             )}
                             {discount > 0 && (
-                                <div className="flex justify-between text-sm text-red-500">
+                                <div className="flex justify-between text-xs sm:text-sm text-red-500">
                                     <span>Discount</span>
                                     <span>- {formatCurr(discount)}</span>
                                 </div>
                             )}
                             {returnedAmount > 0 && (
                                 <>
-                                    <div className="flex justify-between border-t pt-2 text-sm text-gray-600">
+                                    <div className="flex justify-between border-t pt-1.5 text-xs sm:text-sm text-gray-600">
                                         <span>Original Total</span>
                                         <span>{formatCurr(sale.totalAmount)}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm font-semibold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">
+                                    <div className="flex justify-between text-xs sm:text-sm font-semibold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">
                                         <span>Return Deduction</span>
                                         <span>- {formatCurr(returnedAmount)}</span>
                                     </div>
                                 </>
                             )}
-                            <div className="flex justify-between border-t pt-2 font-black text-base text-gray-900">
+                            <div className="flex justify-between border-t pt-1.5 font-black text-sm sm:text-base text-gray-900">
                                 <span>{returnedAmount > 0 ? 'Net Payable' : 'Grand Total'}</span>
                                 <span className={returnedAmount > 0 ? 'text-orange-600' : 'text-blue-600'}>
                                     {formatCurr(netTotal)}
                                 </span>
                             </div>
-                            <div className="flex justify-between text-sm text-emerald-600 font-semibold">
+                            <div className="flex justify-between text-xs sm:text-sm text-emerald-600 font-semibold">
                                 <span>Paid</span>
                                 <span>{formatCurr(sale.paidAmount)}</span>
                             </div>
                             {netBalanceDue > 0 && (
-                                <div className="flex justify-between text-sm text-red-500 font-semibold">
+                                <div className="flex justify-between text-xs sm:text-sm text-red-500 font-semibold">
                                     <span>Balance Due</span>
                                     <span>{formatCurr(netBalanceDue)}</span>
                                 </div>
                             )}
                             {netTotal <= 0 && (
-                                <div className="flex justify-between text-sm text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-lg">
+                                <div className="flex justify-between text-xs sm:text-sm text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-lg">
                                     <span>Fully Settled</span>
                                     <span>No amount due</span>
                                 </div>
@@ -266,8 +266,8 @@ export default function InvoiceViewModal({ sale, onClose }) {
 
                     {/* Payment Method */}
                     <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
-                        <span className="text-xs text-gray-500 font-semibold uppercase tracking-widest">Payment Method</span>
-                        <span className="font-bold text-gray-800">{sale.paymentMethod}</span>
+                        <span className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-widest">Payment Method</span>
+                        <span className="font-bold text-gray-800 text-xs sm:text-sm">{sale.paymentMethod}</span>
                     </div>
 
                     {sale.notes && (
@@ -279,9 +279,9 @@ export default function InvoiceViewModal({ sale, onClose }) {
 
                     {/* Bank Details */}
                     {sale.store?.bankName && (
-                        <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100">
+                        <div className="p-3.5 sm:p-4 rounded-xl bg-blue-50/50 border border-blue-100">
                             <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3">Settlement Details</p>
-                            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-xs sm:text-sm">
                                 <div>
                                     <p className="text-[10px] text-gray-400 font-bold uppercase">Bank Name</p>
                                     <p className="font-bold text-gray-900">{sale.store.bankName}</p>
@@ -308,32 +308,32 @@ export default function InvoiceViewModal({ sale, onClose }) {
                 </div>
 
                 {/* Footer Actions */}
-                <div className="shrink-0 flex items-center justify-between gap-3 p-4 border-t border-gray-100 bg-gray-50">
+                <div className="shrink-0 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50">
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-100 transition-colors"
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-xs sm:text-sm hover:bg-gray-100 transition-colors text-center"
                     >
                         Close
                     </button>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 sm:gap-2">
                         <button
                             onClick={handleWhatsAppShare}
-                            className="px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1ebd5c] text-white font-bold text-sm transition-colors flex items-center gap-2"
+                            className="px-2.5 sm:px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1ebd5c] text-white font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                         >
-                            <FaWhatsapp className="w-4 h-4" /> WhatsApp
+                            <FaWhatsapp className="w-4 h-4 shrink-0" /> <span className="hidden xs:inline">WhatsApp</span><span className="xs:hidden">Share</span>
                         </button>
                         <button
                             onClick={handlePrint}
-                            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors flex items-center gap-2"
+                            className="px-2.5 sm:px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                         >
-                            <HiOutlinePrinter className="w-4 h-4" /> Print
+                            <HiOutlinePrinter className="w-4 h-4 shrink-0" /> Print
                         </button>
                         <button
                             onClick={handleDownload}
-                            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors flex items-center gap-2"
+                            className="px-2.5 sm:px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                         >
-                            <HiOutlineDocumentArrowDown className="w-4 h-4" /> Download PDF
+                            <HiOutlineDocumentArrowDown className="w-4 h-4 shrink-0" /> <span className="hidden xs:inline">PDF</span><span className="xs:hidden">Save</span>
                         </button>
                     </div>
                 </div>

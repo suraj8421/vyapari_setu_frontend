@@ -345,15 +345,15 @@ export default function PurchasesPage() {
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
                 title={t('purchases.newPurchase')}
-                size="lg"
+                size="xl"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
 
                     {/* Vendor hint from SmartScan */}
                     {vendorHint && (
-                        <div className="flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm shadow-lg shadow-amber-500/5">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm shadow-lg shadow-amber-500/5">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-full bg-amber-500/20 text-amber-400">
+                                <div className="p-2 rounded-full bg-amber-500/20 text-amber-400 shrink-0">
                                     <HiOutlineSparkles className="w-5 h-5 animate-pulse" />
                                 </div>
                                 <div>
@@ -364,14 +364,14 @@ export default function PurchasesPage() {
                             <button
                                 type="button"
                                 onClick={addSupplierOnFly}
-                                className="px-3 py-1.5 rounded-lg bg-amber-500 text-surface-900 text-xs font-bold hover:bg-amber-400 transition-colors"
+                                className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-amber-500 text-surface-900 text-xs font-bold hover:bg-amber-400 transition-colors"
                             >
                                 + Add Supplier
                             </button>
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label className="input-label">{t('purchases.supplier')} *</label>
                             <select
@@ -397,7 +397,7 @@ export default function PurchasesPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div>
                             <label className="input-label">Date</label>
                             <input
@@ -440,25 +440,25 @@ export default function PurchasesPage() {
                     )}
 
                     {/* Line items */}
-                    <div className="flex items-center justify-between mb-4">
-                        <label className="input-label mb-0 text-lg font-bold text-surface-200">Line Items</label>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 mb-2">
+                        <label className="input-label mb-0 text-base sm:text-lg font-bold text-surface-200">Line Items</label>
                         {items.some(i => !i._exists && i._extractedName) && (
                             <button
                                 type="button"
                                 onClick={addAllNewItems}
-                                className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 uppercase tracking-wider px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 shadow-lg shadow-amber-500/5 transition-all"
+                                className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 uppercase tracking-wider px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 shadow-lg shadow-amber-500/5 transition-all"
                             >
                                 <HiOutlinePlus className="w-3 h-3" /> Add All New Items
                             </button>
                         )}
                     </div>
 
-                    {/* Table Header */}
-                    <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-surface-500 uppercase tracking-widest border-b border-surface-800/50 mb-2">
+                    {/* Table Header (Desktop Only) */}
+                    <div className="hidden md:grid md:grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-surface-500 uppercase tracking-widest border-b border-surface-800/50 mb-2">
                         <div className="col-span-3">Item / Product</div>
                         <div className="col-span-2 text-center">HSN</div>
                         <div className="col-span-1 text-center">Qty</div>
-                        <div className="col-span-2 text-center">Rate</div>
+                        <div className="col-span-2 text-center">Rate (₹)</div>
                         <div className="col-span-2 text-center">GST %</div>
                         <div className="col-span-1 text-right">Total</div>
                         <div className="col-span-1"></div>
@@ -490,72 +490,164 @@ export default function PurchasesPage() {
                                             )}
                                         </div>
                                     )}
-                                    <div className={`grid grid-cols-12 gap-2 p-3 rounded-xl transition-all items-center ${item._exists ? 'bg-surface-800/30' : 'bg-amber-500/5 border border-amber-500/20'}`}>
-                                        <div className="col-span-3">
-                                            <select
-                                                className="select-field py-1.5 text-xs"
-                                                value={item.productId}
-                                                onChange={e => updateItem(idx, 'productId', e.target.value)}
-                                                required
-                                            >
-                                                <option value="">-- Select</option>
-                                                {products.map(p => (
-                                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                                ))}
-                                            </select>
+
+                                    {/* Line Item Container: Card on mobile, Grid on md+ */}
+                                    <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${item._exists ? 'bg-surface-800/30 border-surface-700/40' : 'bg-amber-500/5 border-amber-500/20'}`}>
+                                        {/* Mobile Layout (< md) */}
+                                        <div className="md:hidden space-y-3">
+                                            <div>
+                                                <label className="text-[10px] font-bold uppercase text-surface-400 tracking-wider mb-1 block">Product / Item *</label>
+                                                <select
+                                                    className="select-field py-2 text-xs w-full"
+                                                    value={item.productId}
+                                                    onChange={e => updateItem(idx, 'productId', e.target.value)}
+                                                    required
+                                                >
+                                                    <option value="">-- Select Product --</option>
+                                                    {products.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2.5">
+                                                <div>
+                                                    <label className="text-[10px] font-bold uppercase text-surface-400 tracking-wider mb-1 block">HSN</label>
+                                                    <input
+                                                        className="input-field py-2 text-xs"
+                                                        value={item.hsnCode || ''}
+                                                        onChange={e => updateItem(idx, 'hsnCode', e.target.value)}
+                                                        placeholder="HSN Code"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold uppercase text-surface-400 tracking-wider mb-1 block">Quantity</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        className="input-field py-2 text-xs text-center font-bold"
+                                                        value={item.quantity}
+                                                        onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2.5">
+                                                <div>
+                                                    <label className="text-[10px] font-bold uppercase text-surface-400 tracking-wider mb-1 block">Rate (₹)</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        className="input-field py-2 text-xs font-bold"
+                                                        value={item.unitPrice}
+                                                        onChange={e => updateItem(idx, 'unitPrice', e.target.value)}
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold uppercase text-surface-400 tracking-wider mb-1 block">GST Rate</label>
+                                                    <select
+                                                        className="select-field py-2 text-xs"
+                                                        value={item.gstRate}
+                                                        onChange={e => updateItem(idx, 'gstRate', e.target.value)}
+                                                    >
+                                                        <option value="0">0%</option>
+                                                        <option value="5">5%</option>
+                                                        <option value="12">12%</option>
+                                                        <option value="18">18%</option>
+                                                        <option value="28">28%</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-2 border-t border-surface-700/30">
+                                                <div>
+                                                    <span className="text-[10px] font-bold uppercase text-surface-400 mr-2">Item Total:</span>
+                                                    <span className="text-sm font-bold text-emerald-400">
+                                                        ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                                    </span>
+                                                </div>
+                                                {items.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                                                        className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                    >
+                                                        <HiOutlineTrash className="w-4 h-4" /> Remove
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="col-span-2">
-                                            <input
-                                                className="input-field py-1.5 text-xs text-center"
-                                                value={item.hsnCode}
-                                                onChange={e => updateItem(idx, 'hsnCode', e.target.value)}
-                                                placeholder="HSN"
-                                            />
-                                        </div>
-                                        <div className="col-span-1">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                className="input-field py-1.5 text-xs text-center"
-                                                value={item.quantity}
-                                                onChange={e => updateItem(idx, 'quantity', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="input-field py-1.5 text-xs text-center"
-                                                value={item.unitPrice}
-                                                onChange={e => updateItem(idx, 'unitPrice', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <select
-                                                className="select-field py-1.5 text-xs"
-                                                value={item.gstRate}
-                                                onChange={e => updateItem(idx, 'gstRate', e.target.value)}
-                                            >
-                                                <option value="0">0%</option>
-                                                <option value="5">5%</option>
-                                                <option value="12">12%</option>
-                                                <option value="18">18%</option>
-                                                <option value="28">28%</option>
-                                            </select>
-                                        </div>
-                                        <div className="col-span-1 text-right">
-                                            <span className="text-xs font-bold text-surface-200">
-                                                {lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                            </span>
-                                        </div>
-                                        <div className="col-span-1 text-right">
-                                            <button
-                                                type="button"
-                                                onClick={() => items.length > 1 && setItems(items.filter((_, i) => i !== idx))}
-                                                className="p-1.5 text-surface-600 hover:text-red-400 transition-colors"
-                                            >
-                                                <HiOutlineTrash className="w-4 h-4" />
-                                            </button>
+
+                                        {/* Desktop Layout (md+) */}
+                                        <div className="hidden md:grid md:grid-cols-12 md:gap-2 md:items-center">
+                                            <div className="col-span-3">
+                                                <select
+                                                    className="select-field py-1.5 text-xs"
+                                                    value={item.productId}
+                                                    onChange={e => updateItem(idx, 'productId', e.target.value)}
+                                                    required
+                                                >
+                                                    <option value="">-- Select</option>
+                                                    {products.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <input
+                                                    className="input-field py-1.5 text-xs text-center"
+                                                    value={item.hsnCode || ''}
+                                                    onChange={e => updateItem(idx, 'hsnCode', e.target.value)}
+                                                    placeholder="HSN"
+                                                />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    className="input-field py-1.5 text-xs text-center font-bold"
+                                                    value={item.quantity}
+                                                    onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    className="input-field py-1.5 text-xs text-center"
+                                                    value={item.unitPrice}
+                                                    onChange={e => updateItem(idx, 'unitPrice', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <select
+                                                    className="select-field py-1.5 text-xs"
+                                                    value={item.gstRate}
+                                                    onChange={e => updateItem(idx, 'gstRate', e.target.value)}
+                                                >
+                                                    <option value="0">0%</option>
+                                                    <option value="5">5%</option>
+                                                    <option value="12">12%</option>
+                                                    <option value="18">18%</option>
+                                                    <option value="28">28%</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-1 text-right">
+                                                <span className="text-xs font-bold text-surface-200">
+                                                    {lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                                </span>
+                                            </div>
+                                            <div className="col-span-1 text-right">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => items.length > 1 && setItems(items.filter((_, i) => i !== idx))}
+                                                    className="p-1.5 text-surface-600 hover:text-red-400 transition-colors"
+                                                    title="Delete item"
+                                                >
+                                                    <HiOutlineTrash className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -566,30 +658,30 @@ export default function PurchasesPage() {
                     <button
                         type="button"
                         onClick={() => setItems([...items, { productId: '', quantity: 1, unitPrice: 0, gstRate: 0, hsnCode: '' }])}
-                        className="btn-ghost btn-sm text-primary-400 mt-2"
+                        className="btn-ghost btn-sm text-primary-400 mt-2 flex items-center gap-1"
                     >
                         <HiOutlinePlus className="w-4 h-4" /> {t('sales.addItem')}
                     </button>
 
                     {/* Total */}
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-surface-800/30">
-                        <span className="text-surface-400">{t('common.total')}:</span>
-                        <span className="text-xl font-bold">{fmt(calcTotal())}</span>
+                    <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-xl bg-surface-800/30 border border-surface-700/30">
+                        <span className="text-sm text-surface-400">{t('common.total')}:</span>
+                        <span className="text-lg sm:text-xl font-bold text-emerald-400">{fmt(calcTotal())}</span>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-surface-700/50">
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-3 pt-4 border-t border-surface-700/50">
                         <button
                             type="button"
                             onClick={() => setModalOpen(false)}
-                            className="btn-secondary"
+                            className="btn-secondary w-full sm:w-auto"
                         >
                             {t('common.cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="btn-primary"
+                            className="btn-primary w-full sm:w-auto"
                         >
                             {saving ? '...' : t('common.save')}
                         </button>

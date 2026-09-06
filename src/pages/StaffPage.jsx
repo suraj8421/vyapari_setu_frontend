@@ -255,10 +255,10 @@ export default function StaffPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={editingUser ? "Update Staff Profile" : "Onboard New Staff Member"}
-                maxWidth="max-w-md"
+                maxWidth="sm:max-w-md"
             >
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label className="input-label">First Name</label>
                             <input 
@@ -314,9 +314,9 @@ export default function StaffPage() {
                         <p className="text-[10px] text-surface-400 mt-2 italic font-medium leading-relaxed">Managers can view reports, handle purchases, and manage other staff members within your store.</p>
                     </div>
 
-                    <div className="pt-4 flex gap-3">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary flex-1">Abort</button>
-                        <button type="submit" className="btn-primary flex-1">
+                    <div className="pt-4 flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary w-full sm:flex-1">Abort</button>
+                        <button type="submit" className="btn-primary w-full sm:flex-1">
                             {editingUser ? "Apply Changes" : "Confirm Onboarding"}
                         </button>
                     </div>
