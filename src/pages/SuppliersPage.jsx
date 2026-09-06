@@ -63,10 +63,14 @@ export default function SuppliersPage() {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h1 className="text-2xl font-bold text-surface-900">{t('suppliers.title')}</h1>
                 <div className="flex gap-3">
-                    {isAdmin && <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary"><HiOutlinePlus className="w-5 h-5" /> {t('suppliers.addSupplier')}</button>}
+                    {isAdmin && (
+                        <button onClick={() => { setEditItem(null); setForm(emptyForm); setModalOpen(true); }} className="btn-primary w-full sm:w-auto">
+                            <HiOutlinePlus className="w-5 h-5" /> {t('suppliers.addSupplier')}
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="glass-card p-4"><div className="relative max-w-md"><HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" /><input type="text" className="input-field pl-10 py-2.5" placeholder={t('common.search')} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div></div>
@@ -83,16 +87,16 @@ export default function SuppliersPage() {
             <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editItem ? t('suppliers.editSupplier') : t('suppliers.addSupplier')}>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div><label className="input-label">{t('suppliers.supplierName')} *</label><input className="input-field" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div><label className="input-label">{t('common.phone')}</label><input className="input-field" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
                         <div><label className="input-label">{t('common.email')}</label><input className="input-field" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
                     </div>
                     <div><label className="input-label">{t('suppliers.gstNumber')}</label><input className="input-field" value={form.gstNumber} onChange={e => setForm({ ...form, gstNumber: e.target.value })} /></div>
                     <div><label className="input-label">{t('common.address')}</label><input className="input-field" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
                     {isSuperAdmin && stores.length > 0 && <div><label className="input-label">{t('nav.stores')}</label><select className="select-field" value={form.storeId} onChange={e => setForm({ ...form, storeId: e.target.value })} required><option value="">Select</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-surface-700/50">
-                        <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">{t('common.cancel')}</button>
-                        <button type="submit" disabled={saving} className="btn-primary">{saving ? '...' : t('common.save')}</button>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-3 pt-4 border-t border-surface-700/50">
+                        <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">{t('common.cancel')}</button>
+                        <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">{saving ? '...' : t('common.save')}</button>
                     </div>
                 </form>
             </Modal>

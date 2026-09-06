@@ -98,11 +98,11 @@ export default function RegisterPage() {
                 </div>
 
                 {/* Card */}
-                <div className="glass-card p-8 sm:p-10">
-                    <div className="flex items-center justify-between mb-8">
+                <div className="glass-card p-5 sm:p-10">
+                    <div className="flex items-center justify-between mb-6 sm:mb-8">
                         <div>
-                            <h2 className="text-2xl font-black text-surface-900 tracking-tight">Create Business Account</h2>
-                            <p className="text-sm text-surface-500 mt-1">Get started with VyapariSetu in minutes</p>
+                            <h2 className="text-xl sm:text-2xl font-black text-surface-900 tracking-tight">Create Business Account</h2>
+                            <p className="text-xs sm:text-sm text-surface-500 mt-1">Get started with VyapariSetu in minutes</p>
                         </div>
                         <div className="flex gap-1.5">
                             <div className={`w-2.5 h-2.5 rounded-full transition-all ${step === 1 ? 'bg-primary-600 w-8' : 'bg-gray-200'}`} />
@@ -119,7 +119,7 @@ export default function RegisterPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {step === 1 ? (
                             <>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                     <div>
                                         <label className="input-label">First Name</label>
                                         <div className="relative">
@@ -188,7 +188,7 @@ export default function RegisterPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStep(2)}
-                                        className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2"
+                                        className="btn-primary w-full py-3.5 sm:py-4 text-sm sm:text-base flex items-center justify-center gap-2"
                                     >
                                         Next: Store Details <HiOutlineArrowRight />
                                     </button>
@@ -230,7 +230,7 @@ export default function RegisterPage() {
                                     </select>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                     <div>
                                         <label className="input-label">Password</label>
                                         <div className="relative">
@@ -262,18 +262,18 @@ export default function RegisterPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-4 pt-4">
+                                <div className="flex items-center gap-3 sm:gap-4 pt-4">
                                     <button
                                         type="button"
                                         onClick={() => setStep(1)}
-                                        className="w-1/3 py-4 text-surface-500 font-bold hover:text-surface-900 transition-colors"
+                                        className="w-1/3 py-3.5 sm:py-4 text-surface-500 font-bold hover:text-surface-900 transition-colors text-sm sm:text-base"
                                     >
                                         Back
                                     </button>
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="flex-1 btn-primary py-4 text-base"
+                                        className="flex-1 btn-primary py-3.5 sm:py-4 text-sm sm:text-base"
                                     >
                                         {loading ? 'Setting up...' : 'Complete Sign Up'}
                                     </button>
