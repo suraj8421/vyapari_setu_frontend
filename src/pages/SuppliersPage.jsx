@@ -10,7 +10,7 @@ import { HiOutlinePlus, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineMagnifyi
 
 export default function SuppliersPage() {
     const { t } = useTranslation();
-    const { isAdmin, user } = useAuth();
+    const { isAdmin, isSuperAdmin, user } = useAuth();
     const [suppliers, setSuppliers] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -20,11 +20,11 @@ export default function SuppliersPage() {
     const [editItem, setEditItem] = useState(null);
     const [saving, setSaving] = useState(false);
     const [stores, setStores] = useState([]);
-    const emptyForm = { name: '', phone: '', email: '', gstNumber: '', address: '', storeId: user?.storeId || '' };
+    const emptyForm = { name: '', phone: '', email: '', gstNumber: '', address: '', storeId: user?.storeId || (isSuperAdmin ? stores[0]?.id : '') || '' };
     const [form, setForm] = useState(emptyForm);
 
     useEffect(() => { fetchData(); }, [page, search]);
-    useEffect(() => { if (isAdmin) fetchStores(); }, [isAdmin]);
+    useEffect(() => { if (isSuperAdmin) fetchStores(); }, [isSuperAdmin]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -93,7 +93,7 @@ export default function SuppliersPage() {
                     </div>
                     <div><label className="input-label">{t('suppliers.gstNumber')}</label><input className="input-field" value={form.gstNumber} onChange={e => setForm({ ...form, gstNumber: e.target.value })} /></div>
                     <div><label className="input-label">{t('common.address')}</label><input className="input-field" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
-                    {isAdmin && stores.length > 0 && <div><label className="input-label">{t('nav.stores')}</label><select className="select-field" value={form.storeId} onChange={e => setForm({ ...form, storeId: e.target.value })} required><option value="">Select</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>}
+                    {isSuperAdmin && stores.length > 0 && <div><label className="input-label">{t('nav.stores')}</label><select className="select-field" value={form.storeId} onChange={e => setForm({ ...form, storeId: e.target.value })} required><option value="">Select</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>}
                     <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-3 pt-4 border-t border-surface-700/50">
                         <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">{t('common.cancel')}</button>
                         <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">{saving ? '...' : t('common.save')}</button>

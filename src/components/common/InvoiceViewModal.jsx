@@ -7,8 +7,8 @@ import {
 } from 'react-icons/hi2';
 import { FaWhatsapp } from 'react-icons/fa';
 import { generateInvoicePDF } from '../../utils/pdfGenerator';
+import { convertNumberToWords } from '../../utils/numberToWords';
 import toast from 'react-hot-toast';
-import Logo from './Logo';
 
 export default function InvoiceViewModal({ sale, onClose }) {
     if (!sale) return null;
@@ -17,52 +17,65 @@ export default function InvoiceViewModal({ sale, onClose }) {
         new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val || 0);
 
     const handleDownload = () => {
-        generateInvoicePDF(
-            {
-                invoiceNumber: sale.invoiceNumber,
-                date: sale.createdAt,
-                invoiceType: sale.invoiceType || 'NON_GST',
-                partyName: sale.partyName || sale.customer?.name || sale.supplier?.name || 'Walk-in Customer',
-                mobile: sale.mobile || sale.customer?.phone || sale.supplier?.phone || '',
-                store: sale.store,
-                items: (sale.items || []).map(item => ({
-                    productId: item.productId,
-                    productName: item.product?.name || item.productName || 'Product',
-                    quantity: item.quantity,
-                    unitPrice: item.unitPrice,
-                    unit: item.unit || 'PCS',
-                    discount: item.discount || 0,
-                    gstRate: item.gstRate || 0,
-                    total: item.total,
-                })),
-                subtotal: sale.subtotal || sale.totalAmount,
-                tax: sale.taxAmount || 0,
-                discount: sale.discount || 0,
-                total: sale.totalAmount,
-                payments: [{ method: sale.paymentMethod, amount: sale.paidAmount }],
-            },
-            sale.type || 'SALE', // pass type for Purchases / Sales etc
-            sale.items?.map(i => ({ id: i.productId, name: i.product?.name })) || []
-        );
+        try {
+            generateInvoicePDF(
+                {
+                    invoiceNumber: sale.invoiceNumber || 'DRAFT',
+                    date: sale.createdAt || new Date().toISOString(),
+                    invoiceType: sale.invoiceType || 'NON_GST',
+                    partyName: sale.partyName || sale.customer?.name || sale.supplier?.name || 'Walk-in Customer',
+                    partyAddress: sale.customer?.address || sale.supplier?.address || '',
+                    partyGst: sale.customer?.gstNumber || sale.supplier?.gstNumber || '',
+                    mobile: sale.mobile || sale.customer?.phone || sale.supplier?.phone || '',
+                    store: sale.store || {},
+                    items: (sale.items || []).map(item => ({
+                        productId: item.productId || '',
+                        productName: item.product?.name || item.productName || 'Product',
+                        hsnCode: item.product?.hsnCode || item.hsnCode || 'N/A',
+                        quantity: Number(item.quantity) || 0,
+                        unitPrice: Number(item.unitPrice) || 0,
+                        unit: item.unit || 'PCS',
+                        discount: Number(item.discount) || 0,
+                        gstRate: Number(item.gstRate) || 0,
+                        total: Number(item.total) || 0,
+                        returned: item.returned || false,
+                    })),
+                    subtotal: Number(sale.subtotal || sale.totalAmount) || 0,
+                    tax: Number(sale.taxAmount || sale.tax) || 0,
+                    discount: Number(sale.discount) || 0,
+                    total: Number(sale.totalAmount || sale.total) || 0,
+                    payments: [{ method: sale.paymentMethod || 'CASH', amount: Number(sale.paidAmount) || 0 }],
+                    dueDate: sale.dueDate || '',
+                    despatchDocNo: sale.despatchDocNo || '',
+                    despatchDate: sale.despatchDate || '',
+                    despatchedThrough: sale.despatchedThrough || '',
+                    destination: sale.destination || '',
+                    vehicleNumber: sale.vehicleNumber || '',
+                    notes: sale.notes || '',
+                },
+                sale.type || 'SALE'
+            );
+            toast.success('PDF downloaded successfully!');
+        } catch (err) {
+            console.error('PDF generation error:', err);
+            toast.error('Failed to generate PDF: ' + (err?.message || 'Unknown error'));
+        }
     };
 
     const handleWhatsAppShare = () => {
-        // 1. Trigger the download first
         handleDownload();
 
-        // 2. Format phone number and message
         let phone = sale.mobile || sale.customer?.phone || '';
-        phone = phone.replace(/\D/g, ''); // Ensure only digits
+        phone = phone.replace(/\D/g, '');
         if (phone && phone.length <= 10) {
-            phone = '91' + phone; // Add default country code if missing
+            phone = '91' + phone;
         }
 
         const text = `Hello ${sale.partyName || sale.customer?.name || ''}, please find your invoice *${sale.invoiceNumber}* for *${formatCurr(sale.totalAmount)}* from *${sale.store?.name || 'VyapariSetu'}* attached.\n\nThank you for your business!`;
 
-        // 3. Open WhatsApp in new tab
         const waUrl = phone 
             ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
-            : `https://wa.me/?text=${encodeURIComponent(text)}`; // fallback if no number
+            : `https://wa.me/?text=${encodeURIComponent(text)}`;
             
         setTimeout(() => {
             window.open(waUrl, '_blank');
@@ -71,23 +84,116 @@ export default function InvoiceViewModal({ sale, onClose }) {
     };
 
     const handlePrint = () => {
-        // Just print the current window - CSS can hide other things if needed
-        // Or simply call handleDownload since PDF generation is more reliable
-        handleDownload(); 
-        toast.success("Downloading PDF to print!");
+        try {
+            generateInvoicePDF(
+                {
+                    invoiceNumber: sale.invoiceNumber || 'DRAFT',
+                    date: sale.createdAt || new Date().toISOString(),
+                    invoiceType: sale.invoiceType || 'NON_GST',
+                    partyName: sale.partyName || sale.customer?.name || sale.supplier?.name || 'Walk-in Customer',
+                    partyAddress: sale.customer?.address || sale.supplier?.address || '',
+                    partyGst: sale.customer?.gstNumber || sale.supplier?.gstNumber || '',
+                    mobile: sale.mobile || sale.customer?.phone || sale.supplier?.phone || '',
+                    store: sale.store || {},
+                    items: (sale.items || []).map(item => ({
+                        productId: item.productId || '',
+                        productName: item.product?.name || item.productName || 'Product',
+                        hsnCode: item.product?.hsnCode || item.hsnCode || 'N/A',
+                        quantity: Number(item.quantity) || 0,
+                        unitPrice: Number(item.unitPrice) || 0,
+                        unit: item.unit || 'PCS',
+                        discount: Number(item.discount) || 0,
+                        gstRate: Number(item.gstRate) || 0,
+                        total: Number(item.total) || 0,
+                        returned: item.returned || false,
+                    })),
+                    subtotal: Number(sale.subtotal || sale.totalAmount) || 0,
+                    tax: Number(sale.taxAmount || sale.tax) || 0,
+                    discount: Number(sale.discount) || 0,
+                    total: Number(sale.totalAmount || sale.total) || 0,
+                    payments: [{ method: sale.paymentMethod || 'CASH', amount: Number(sale.paidAmount) || 0 }],
+                    dueDate: sale.dueDate || '',
+                    despatchDocNo: sale.despatchDocNo || '',
+                    despatchDate: sale.despatchDate || '',
+                    despatchedThrough: sale.despatchedThrough || '',
+                    destination: sale.destination || '',
+                    vehicleNumber: sale.vehicleNumber || '',
+                    notes: sale.notes || '',
+                    action: 'print',
+                },
+                sale.type || 'SALE'
+            );
+        } catch (err) {
+            console.error('PDF printing error:', err);
+            toast.error('Failed to print PDF: ' + (err?.message || 'Unknown error'));
+        }
     };
 
     const subtotal = Number(sale.subtotal || sale.totalAmount || 0);
-    const tax = Number(sale.taxAmount || 0);
+    const tax = Number(sale.taxAmount || sale.tax || 0);
     const discount = Number(sale.discount || 0);
 
-    // Calculate how much was returned
     const returnedAmount = (sale.items || [])
         .filter(item => item.returned === true)
         .reduce((sum, item) => sum + Number(item.total || 0), 0);
 
-    const netTotal = Number(sale.totalAmount || 0) - returnedAmount;
+    const netTotal = Number(sale.totalAmount || sale.total || 0) - returnedAmount;
     const netBalanceDue = Math.max(0, netTotal - Number(sale.paidAmount || 0));
+
+    const checkIsInterState = (customerAddress, storeState) => {
+        if (!customerAddress || !storeState) return false;
+        const addr = customerAddress.toLowerCase();
+        const state = storeState.toLowerCase();
+        return !addr.includes(state);
+    };
+
+    const isInterState = checkIsInterState(
+        sale.customer?.address || sale.supplier?.address || '',
+        sale.store?.state || ''
+    );
+
+    const gstGroups = {};
+    if (sale.invoiceType === 'GST') {
+        (sale.items || []).forEach(item => {
+            const hsn = item.product?.hsnCode || 'N/A';
+            const rate = Number(item.unitPrice);
+            const qty = item.quantity;
+            const disc = Number(item.discount || 0);
+            const taxable = (qty * rate) - disc;
+            const gstRate = item.gstRate || 0;
+            const gstAmount = (taxable * gstRate) / 100;
+
+            if (!gstGroups[hsn]) {
+                gstGroups[hsn] = {
+                    hsn,
+                    taxableValue: 0,
+                    gstRate,
+                    cgstRate: gstRate / 2,
+                    sgstRate: gstRate / 2,
+                    igstRate: gstRate,
+                    cgstAmount: 0,
+                    sgstAmount: 0,
+                    igstAmount: 0,
+                    totalTax: 0
+                };
+            }
+
+            gstGroups[hsn].taxableValue += taxable;
+            if (isInterState) {
+                gstGroups[hsn].igstAmount += gstAmount;
+                gstGroups[hsn].cgstRate = 0;
+                gstGroups[hsn].sgstRate = 0;
+                gstGroups[hsn].cgstAmount = 0;
+                gstGroups[hsn].sgstAmount = 0;
+            } else {
+                gstGroups[hsn].cgstAmount += gstAmount / 2;
+                gstGroups[hsn].sgstAmount += gstAmount / 2;
+                gstGroups[hsn].igstRate = 0;
+                gstGroups[hsn].igstAmount = 0;
+            }
+            gstGroups[hsn].totalTax += gstAmount;
+        });
+    }
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm">
@@ -335,6 +441,31 @@ export default function InvoiceViewModal({ sale, onClose }) {
                         >
                             <HiOutlineDocumentArrowDown className="w-4 h-4 shrink-0" /> <span className="hidden xs:inline">PDF</span><span className="xs:hidden">Save</span>
                         </button>
+
+                        {/* Action buttons group — wraps on small screens */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={handleWhatsAppShare}
+                                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#1ebd5c] text-white font-bold text-xs sm:text-sm transition-colors"
+                            >
+                                <FaWhatsapp className="w-4 h-4 shrink-0" />
+                                <span>WhatsApp</span>
+                            </button>
+                            <button
+                                onClick={handlePrint}
+                                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition-colors"
+                            >
+                                <HiOutlinePrinter className="w-4 h-4 shrink-0" />
+                                <span>Print</span>
+                            </button>
+                            <button
+                                onClick={handleDownload}
+                                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition-colors"
+                            >
+                                <HiOutlineDocumentArrowDown className="w-4 h-4 shrink-0" />
+                                <span>Download PDF</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </motion.div>

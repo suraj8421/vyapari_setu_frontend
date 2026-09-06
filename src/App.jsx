@@ -93,8 +93,15 @@ export default function App() {
                                         <Route path="profile" element={<ProfilePage />} />
                                     </Route>
 
-                                    {/* Super Admin Segment (Currently un-protected for UI preview) */}
-                                    <Route path="/superadmin" element={<SALayout />}>
+                                    {/* Super Admin Segment — protected: SUPERADMIN role only */}
+                                    <Route
+                                        path="/superadmin"
+                                        element={
+                                            <ProtectedRoute superAdminOnly>
+                                                <SALayout />
+                                            </ProtectedRoute>
+                                        }
+                                    >
                                         <Route index element={<Navigate to="dashboard" replace />} />
                                         <Route path="dashboard" element={<SADashboardPage />} />
                                         <Route path="users" element={<SAUsersPage />} />

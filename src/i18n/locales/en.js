@@ -198,9 +198,20 @@ const en = {
             location: 'Shelf Location',
             lowStock: 'Low Stock',
             outOfStock: 'Out of Stock',
-            inStock: 'In Stock',
             reorderSuggestion: 'Order {{count}} more',
             categories: 'Categories',
+            unitsPerBoxLabel: {
+                PCS: 'Pieces Per Box',
+                KG: 'Kilograms Per Box',
+                LTR: 'Litres Per Box',
+                PACK: 'Packs Per Box',
+                BOX: 'Units Per Box',
+                BAG: 'Bags Per Box',
+                SET: 'Sets Per Box',
+                DOZEN: 'Dozens Per Box',
+                TONS: 'Tons Per Box',
+                default: 'Units Per Box'
+            }
         },
 
         category_list: {
@@ -275,6 +286,7 @@ const en = {
             title: 'Purchases',
             newPurchase: 'New Purchase',
             supplier: 'Supplier',
+            selectSupplier: 'Select Supplier (Optional)',
             billNumber: 'Bill Number',
             purchaseDate: 'Purchase Date',
             addItems: 'Add Items',

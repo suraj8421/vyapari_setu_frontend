@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { purchaseAPI, productAPI, supplierAPI } from '../services/api';
-import { getOrFetch } from '../utils/dataCache';
+import { getOrFetch, invalidate } from '../utils/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { HiOutlinePlus, HiOutlineTrash, HiOutlineSparkles } from 'react-icons/hi2';
-import SmartScanModal from '../modules/purchase/smartscan/components/SmartScanModal.jsx';
-import { mapToForm } from '../modules/purchase/smartscan/utils/mapToForm.js';
+import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
 
 export default function PurchasesPage() {
     const { t } = useTranslation();
@@ -36,9 +34,7 @@ export default function PurchasesPage() {
         notes: '',
     });
 
-    // ─── SmartScan state ────────────────────────────────────────────────────
-    const [scanModalOpen, setScanModalOpen] = useState(false);
-    const [vendorHint, setVendorHint]       = useState(''); // AI-extracted vendor name (display only)
+
 
     useEffect(() => { fetchPurchases(); }, [page]);
 
@@ -67,142 +63,13 @@ export default function PurchasesPage() {
             ]);
             setProducts(p || []);
             setSuppliers(s || []);
-            setItems([{ productId: '', quantity: 1, unitPrice: 0, gstRate: 0 }]);
+            setItems([{ productId: '', productName: '', quantity: 1, unitPrice: 0, gstRate: 0 }]);
             setForm({ storeId: user?.storeId || '', supplierId: '', invoiceNumber: '', date: '', gstin: '', overallGst: '', notes: '' });
-            setVendorHint('');
             setModalOpen(true);
         } catch (err) {
             console.error(err);
         }
     };
-
-    // ─── Open SmartScan modal ───────────────────────────────────────────────
-    const openScan = async () => {
-        // Pre-fetch products & suppliers so mapToForm can fuzzy-match items
-        try {
-            const [p, s] = await Promise.all([
-                getOrFetch('products',  () => productAPI.getAll({ limit: 200 }).then(r => r.data.data || [])),
-                getOrFetch('suppliers', () => supplierAPI.getAll({ limit: 100 }).then(r => r.data.data || [])),
-            ]);
-            setProducts(p || []);
-            setSuppliers(s || []);
-        } catch (_) { /* non-blocking */ }
-        setScanModalOpen(true);
-    };
-
-    // ─── Apply SmartScan result → pre-fill form ─────────────────────────────
-    const handleScanApply = (result) => {
-        try {
-            console.log('[SmartScan] Applying result:', result);
-            const mapped = mapToForm(result, products);
-            const { form: mappedForm, items: mappedItems, vendorHint: hint, supplierExists } = mapped;
-
-            // Merge into existing form
-            setForm(prev => ({
-                ...prev,
-                invoiceNumber: mappedForm.invoiceNumber || prev.invoiceNumber,
-                date: mappedForm.date || prev.date,
-                gstin: mappedForm.gstin || prev.gstin,
-                overallGst: mappedForm.overallGst || prev.overallGst,
-                notes: mappedForm.notes || prev.notes,
-                supplierId: mappedForm.supplierId || prev.supplierId,
-            }));
-
-            if (mappedItems && mappedItems.length > 0) {
-                setItems(mappedItems);
-            }
-
-            setVendorHint(hint || '');
-            setScanModalOpen(false);
-            setModalOpen(true);
-
-            // If supplier is missing, show toast/hint
-            if (!supplierExists && hint) {
-                // We'll show an inline prompt in the form
-            }
-        } catch (err) {
-            console.error('[SmartScan] Application Error:', err);
-            alert('Failed to map scan results to form.');
-            setScanModalOpen(false);
-        }
-    };
-
-    /**
-     * Create a new supplier on the fly
-     */
-    const addSupplierOnFly = async () => {
-        if (!vendorHint) return;
-        setSaving(true);
-        try {
-            const res = await supplierAPI.create({
-                name: vendorHint,
-                storeId: user.storeId,
-            });
-            const newSup = res.data.data;
-            setSuppliers(prev => [...prev, newSup]);
-            setForm(prev => ({ ...prev, supplierId: newSup.id }));
-            setVendorHint(''); // clear hint as it's now a real supplier
-        } catch (err) {
-            alert('Error creating supplier');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    /**
-     * Create a new product on the fly
-     */
-    const addProductOnFly = async (idx) => {
-        const item = items[idx];
-        if (!item._extractedName) return;
-
-        setSaving(true);
-        try {
-            const res = await productAPI.create({
-                name: item._extractedName,
-                sku: `SKU-${Date.now()}-${idx}`,
-                costPrice: item.unitPrice,
-                sellingPrice: item.unitPrice * 1.2, // dummy markup
-                gstRate: item.gstRate,
-                hsnCode: item.hsnCode,
-                storeId: user.storeId,
-            });
-            const newPr = res.data.data;
-            setProducts(prev => [...prev, newPr]);
-            
-            // Link the new product ID to the row
-            const u = [...items];
-            u[idx] = { ...u[idx], productId: newPr.id, _exists: true };
-            setItems(u);
-        } catch (err) {
-            alert('Error creating product');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    /**
-     * Bulk create all missing items
-     */
-    const addAllNewItems = async () => {
-        const missing = items.filter(i => !i._exists && i._extractedName);
-        if (!missing.length) return;
-
-        setSaving(true);
-        try {
-            for (let i = 0; i < items.length; i++) {
-                if (!items[i]._exists && items[i]._extractedName) {
-                    await addProductOnFly(i);
-                }
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // ─── Item update ────────────────────────────────────────────────────────
 
     // ─── Item update ────────────────────────────────────────────────────────
     const updateItem = (idx, field, value) => {
@@ -239,17 +106,56 @@ export default function PurchasesPage() {
                 form.notes
             ].filter(Boolean).join(' | ');
 
+            // Create any new products first
+            const finalItems = [];
+            for (const item of items) {
+                if (!item.productId && (!item.productName || item.productName.trim() === '')) continue;
+
+                let productId = item.productId;
+                if (productId === 'NEW' || !productId || productId.trim() === '') {
+                    // Check if it matches an existing product from list case-insensitively
+                    const existing = products.find(p => p.name.toLowerCase() === item.productName.trim().toLowerCase());
+                    if (existing) {
+                        productId = existing.id;
+                    } else {
+                        // Create the product on the fly
+                        const newProdRes = await productAPI.create({
+                            name: item.productName.trim(),
+                            unit: 'PCS',
+                            costPrice: Number(item.unitPrice) || 0,
+                            sellingPrice: Number(item.unitPrice) || 0,
+                            gstRate: Number(item.gstRate) || 0,
+                            storeId: form.storeId || user?.storeId
+                        });
+                        const newProd = newProdRes.data.data;
+                        productId = newProd.id;
+                    }
+                }
+                finalItems.push({
+                    productId,
+                    quantity: Number(item.quantity),
+                    unitPrice: Number(item.unitPrice) || 0,
+                    gstRate: Number(item.gstRate) || 0,
+                });
+            }
+
+            if (finalItems.length === 0) {
+                alert('Please add at least one valid product.');
+                setSaving(false);
+                return;
+            }
+
             await purchaseAPI.create({
                 ...form,
+                supplierId: form.supplierId || null,
                 notes: finalNotes,
                 paidAmount: calcTotal(),
-                items: items.filter(i => i.productId).map(i => ({
-                    productId: i.productId,
-                    quantity:  Number(i.quantity),
-                    unitPrice: Number(i.unitPrice),
-                    gstRate:   Number(i.gstRate) || 0,
-                })),
+                items: finalItems,
             });
+
+            // Invalidate the cache to ensure newly created products are fetched
+            invalidate('products');
+
             setModalOpen(false);
             fetchPurchases();
         } catch (err) {
@@ -267,17 +173,6 @@ export default function PurchasesPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-surface-900">{t('purchases.title')}</h1>
                 <div className="flex items-center gap-3">
-
-                    {/* ✨ Smart Scan button */}
-                    <button
-                        id="smart-scan-btn"
-                        onClick={openScan}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-500/40 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 hover:border-indigo-400 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                    >
-                        <HiOutlineSparkles className="w-4 h-4 animate-pulse" />
-                        Smart Scan
-                    </button>
-
                     <button
                         id="new-purchase-btn"
                         onClick={openNew}
@@ -332,14 +227,6 @@ export default function PurchasesPage() {
                 </div>
             </div>
 
-            {/* ─── SmartScan Modal ─────────────────────────────────────────── */}
-            <SmartScanModal
-                isOpen={scanModalOpen}
-                onClose={() => setScanModalOpen(false)}
-                onApply={handleScanApply}
-                products={products}
-            />
-
             {/* ─── New Purchase Form Modal ──────────────────────────────────── */}
             <Modal
                 isOpen={modalOpen}
@@ -349,6 +236,7 @@ export default function PurchasesPage() {
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
 
+<<<<<<< HEAD
                     {/* Vendor hint from SmartScan */}
                     {vendorHint && (
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm shadow-lg shadow-amber-500/5">
@@ -372,13 +260,15 @@ export default function PurchasesPage() {
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+=======
+                    <div className="grid grid-cols-2 gap-4">
+>>>>>>> origin/main
                         <div>
-                            <label className="input-label">{t('purchases.supplier')} *</label>
+                            <label className="input-label">{t('purchases.supplier')} {t('common.optional')}</label>
                             <select
                                 className="select-field"
                                 value={form.supplierId}
                                 onChange={e => setForm({ ...form, supplierId: e.target.value })}
-                                required
                             >
                                 <option value="">{t('purchases.selectSupplier')}</option>
                                 {suppliers.map(s => (
@@ -392,7 +282,7 @@ export default function PurchasesPage() {
                                 className="input-field"
                                 value={form.invoiceNumber}
                                 onChange={e => setForm({ ...form, invoiceNumber: e.target.value })}
-                                placeholder="Auto-filled by Smart Scan"
+                                placeholder="Invoice Number"
                             />
                         </div>
                     </div>
@@ -440,6 +330,7 @@ export default function PurchasesPage() {
                     )}
 
                     {/* Line items */}
+<<<<<<< HEAD
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-2 mb-2">
                         <label className="input-label mb-0 text-base sm:text-lg font-bold text-surface-200">Line Items</label>
                         {items.some(i => !i._exists && i._extractedName) && (
@@ -451,6 +342,10 @@ export default function PurchasesPage() {
                                 <HiOutlinePlus className="w-3 h-3" /> Add All New Items
                             </button>
                         )}
+=======
+                    <div className="flex items-center justify-between mb-4">
+                        <label className="input-label mb-0 text-lg font-bold text-surface-200">Line Items</label>
+>>>>>>> origin/main
                     </div>
 
                     {/* Table Header (Desktop Only) */}
@@ -471,6 +366,7 @@ export default function PurchasesPage() {
 
                             return (
                                 <div key={idx} className="space-y-1">
+<<<<<<< HEAD
                                     {/* AI-extracted name hint */}
                                     {item._extractedName && (
                                         <div className="flex items-center justify-between px-1">
@@ -577,6 +473,45 @@ export default function PurchasesPage() {
                                                     </button>
                                                 )}
                                             </div>
+=======
+                                    <div className="grid grid-cols-12 gap-2 p-3 rounded-xl bg-surface-800/30 transition-all items-center">
+                                        <div className="col-span-3">
+                                            <input
+                                                list={`products-list-${idx}`}
+                                                className="input-field py-1.5 text-xs animate-fade-in"
+                                                value={item.productName || ''}
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    const pr = products.find(p => p.name.toLowerCase() === val.toLowerCase());
+                                                    if (pr) {
+                                                        const u = [...items];
+                                                        u[idx] = {
+                                                            ...u[idx],
+                                                            productId: pr.id,
+                                                            productName: pr.name,
+                                                            unitPrice: Number(pr.costPrice),
+                                                            gstRate: Number(pr.gstRate)
+                                                        };
+                                                        setItems(u);
+                                                    } else {
+                                                        const u = [...items];
+                                                        u[idx] = {
+                                                            ...u[idx],
+                                                            productId: 'NEW',
+                                                            productName: val
+                                                        };
+                                                        setItems(u);
+                                                    }
+                                                }}
+                                                placeholder="Type or select product..."
+                                                required
+                                            />
+                                            <datalist id={`products-list-${idx}`}>
+                                                {products.map(p => (
+                                                    <option key={p.id} value={p.name} />
+                                                ))}
+                                            </datalist>
+>>>>>>> origin/main
                                         </div>
 
                                         {/* Desktop Layout (md+) */}
@@ -657,8 +592,13 @@ export default function PurchasesPage() {
 
                     <button
                         type="button"
+<<<<<<< HEAD
                         onClick={() => setItems([...items, { productId: '', quantity: 1, unitPrice: 0, gstRate: 0, hsnCode: '' }])}
                         className="btn-ghost btn-sm text-primary-400 mt-2 flex items-center gap-1"
+=======
+                        onClick={() => setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0, gstRate: 0, hsnCode: '' }])}
+                        className="btn-ghost btn-sm text-primary-400 mt-2"
+>>>>>>> origin/main
                     >
                         <HiOutlinePlus className="w-4 h-4" /> {t('sales.addItem')}
                     </button>

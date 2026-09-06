@@ -25,7 +25,7 @@ import { getOrFetch } from '../utils/dataCache';
 
 export default function CustomersPage() {
     const { t } = useTranslation();
-    const { isAdmin, user } = useAuth();
+    const { isAdmin, isSuperAdmin, user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [customers, setCustomers] = useState([]);
     const [pagination, setPagination] = useState(null);
@@ -49,7 +49,7 @@ export default function CustomersPage() {
     const [scoreModalOpen, setScoreModalOpen] = useState(false);
     const [scoreData, setScoreData] = useState(null);
 
-    const emptyForm = { name: '', phone: '', email: '', address: '', creditLimit: 0, storeId: user?.storeId || '' };
+    const emptyForm = { name: '', phone: '', email: '', address: '', creditLimit: 0, storeId: user?.storeId || (isSuperAdmin ? stores[0]?.id : '') || '' };
     const [form, setForm] = useState(emptyForm);
     const [payForm, setPayForm] = useState({ customerId: '', amount: '', paymentMethod: 'CASH', description: '', reference: '' });
 
@@ -70,8 +70,8 @@ export default function CustomersPage() {
 
     // ─── Static/Reference Data (Cached) ─────────────────────
     useEffect(() => {
-        if (isAdmin) fetchStores();
-    }, [isAdmin]);
+        if (isSuperAdmin) fetchStores();
+    }, [isSuperAdmin]);
 
     // Handle deep link for ledger
     useEffect(() => {
@@ -576,7 +576,7 @@ export default function CustomersPage() {
                         <label className="input-label">{t('customers.creditLimit')}</label>
                         <input type="number" className="input-field" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} />
                     </div>
-                    {isAdmin && stores.length > 0 && (
+                    {isSuperAdmin && stores.length > 0 && (
                         <div>
                             <label className="input-label">{t('nav.stores')}</label>
                             <select className="select-field" value={form.storeId} onChange={(e) => setForm({ ...form, storeId: e.target.value })} required>

@@ -235,7 +235,7 @@ function ReturnModal({ sale, onConfirm, onClose, loading }) {
 // ── Main Component ─────────────────────────────────────────────────
 export default function SalesPage() {
     const { t } = useTranslation();
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, isSuperAdmin } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
 
     // Filters from URL
@@ -378,7 +378,7 @@ export default function SalesPage() {
                     .map(i => ({
                         productId: i.productId,
                         quantity: Number(i.quantity),
-                        unitPrice: Number(i.unitPrice),
+                        unitPrice: Number(i.unitPrice) || 0,
                         discount: Number(i.discount) || 0,
                         gstRate: Number(i.gstRate) || 0,
                     })),
@@ -603,7 +603,7 @@ export default function SalesPage() {
                                                 - Greyed out tooltip shown for already-returned sales
                                                 - Only admins see the button to prevent accidental returns */}
                                             <td>
-                                                {canReturn ? (
+                                                {(isAdmin || isSuperAdmin) && canReturn ? (
                                                     <button
                                                         type="button"
                                                         onClick={() => setReturnTarget(sale)}
@@ -618,9 +618,10 @@ export default function SalesPage() {
                                                     </button>
                                                 ) : (
                                                     // Show a faded label so admin can confirm it's already returned
-                                                    <span className="text-xs text-surface-400">
+                                                    <span className="text-xs text-surface-400 font-medium">
                                                         {sale.status === 'RETURNED' ? t('sales.status.RETURNED') :
-                                                            sale.status === 'CANCELLED' ? t('sales.status.CANCELLED') : '—'}
+                                                            sale.status === 'CANCELLED' ? t('sales.status.CANCELLED') : 
+                                                            sale.status === 'PARTIAL_RETURN' ? t('sales.status.PARTIAL_RETURN') : '—'}
                                                     </span>
                                                 )}
                                             </td>
